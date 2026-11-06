@@ -3,49 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ICONNECTURE - Gestión Pro</title>
+  <title>ICONNECTURE - Fase 1 (Base Cloud)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    @media print {
-      body * { visibility: hidden; }
-      #printable-receipt, #printable-receipt * { visibility: visible; }
-      #printable-receipt { position: absolute; left: 0; top: 0; width: 100%; background: white !important; color: black !important; }
-      .no-print { display: none !important; }
-    }
-    .hide-scrollbar::-webkit-scrollbar { display: none; }
-    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    .fade-in { animation: fadeIn 0.2s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
-  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen text-xs selection:bg-purple-500/30">
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen text-xs">
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useMemo, Component } = React;
+    const { useState, useEffect, Component } = React;
 
-    // =========================================================================
-    // 1. SISTEMA ANTI-CRASH (ERROR BOUNDARY)
-    // =========================================================================
+    // ==========================================
+    // 1. PROTECCIÓN CONTRA CRASHEOS (Error Boundary)
+    // ==========================================
     class ErrorBoundary extends Component {
       constructor(props) { super(props); this.state = { hasError: false, errorInfo: null }; }
       static getDerivedStateFromError(error) { return { hasError: true, errorInfo: error.message }; }
-      componentDidCatch(error, errorInfo) { console.error("Error UI:", error, errorInfo); }
       render() {
         if (this.state.hasError) {
           return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-950 p-4">
-              <div className="bg-rose-950/30 border border-rose-600 rounded-xl p-6 max-w-lg text-center space-y-4">
-                <i className="fa-solid fa-triangle-exclamation text-4xl text-rose-500"></i>
-                <h1 className="text-lg font-bold text-white">Error de Interfaz</h1>
-                <p className="text-slate-300 text-xs">El sistema protegió tus datos. Ocurrió un error visual.</p>
-                <div className="bg-slate-950 border border-rose-900 p-3 rounded-lg text-left font-mono text-[10px] text-rose-300 overflow-auto">{this.state.errorInfo}</div>
-                <button onClick={() => window.location.reload()} className="bg-rose-600 hover:bg-rose-500 text-white font-bold py-2 px-4 rounded-lg transition">Recargar Sistema</button>
+            <div className="flex items-center justify-center min-h-screen bg-slate-950 p-6 text-center">
+              <div className="bg-rose-950/30 border border-rose-600 rounded-xl p-8 space-y-4">
+                <h1 className="text-xl font-bold text-white text-rose-500">Error Visual Detectado</h1>
+                <p className="text-slate-300">Tus datos en la nube están a salvo. Recargá la página.</p>
+                <button onClick={() => window.location.reload()} className="bg-rose-600 text-white font-bold py-2 px-6 rounded-lg">Recargar</button>
               </div>
             </div>
           );
@@ -54,1263 +39,179 @@
       }
     }
 
-    // =========================================================================
-    // 2. CONFIGURACIÓN CLOUD (CREDENCIAIS INCORPORADAS)
-    // =========================================================================
+    // ==========================================
+    // 2. CONFIGURACIÓN EXCLUSIVA DE LA NUBE
+    // ==========================================
     const SUPABASE_URL = "https://cmmkxrkbmdzhjzetbddg.supabase.co";
     const SUPABASE_KEY = "sb_publishable_FcfhbHbgGG9mV8zp75g1yA_MbUi-jn1";
-    
-    let supabase = null;
-    try {
-      if (SUPABASE_URL.startsWith("http") && window.supabase) {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      }
-    } catch (err) { console.error("Error DB:", err); }
+    let supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // =========================================================================
-    // 3. CONSTANTES Y FUNCIONES DE SEGURIDAD
-    // =========================================================================
-    const USUARIOS_DEFAULT = [
-      { id: '1', nombre: 'Bruno', pass: 'bruno123', rol: 'Administrador / Técnico' },
+    const USUARIOS = [
+      { id: '1', nombre: 'Bruno', pass: 'bruno123', rol: 'Administrador' },
       { id: '2', nombre: 'Mateo', pass: 'mateo123', rol: 'Socio' },
       { id: '3', nombre: 'Yaco', pass: 'yaco123', rol: 'Empleado' },
       { id: '4', nombre: 'Priscila', pass: 'priscila123', rol: 'Contadora' }
     ];
-    const GREMIOS_DEFAULT = ['ICONNECTURE', 'Nico', 'Román'];
-    
-    const safeArray = (arr) => Array.isArray(arr) ? arr : [];
-    const safeString = (str) => (str || '').toString().toLowerCase();
-    const loadStorage = (key, defaultVal) => {
-      try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : defaultVal; } 
-      catch (e) { return defaultVal; }
-    };
 
-    const CATEGORIAS_GASTOS_NEGOCIO = ['Cadetería', 'Pantallas', 'Baterías', 'Tapas / Housings', 'Flex / Pines', 'Herramientas', 'Insumos de Taller', 'Publicidad', 'Alquiler', 'Luz / Servicios', 'Varios'];
-    const CATEGORIAS_GASTOS_PERSONALES = ['Gimnasio / Entrenamiento', 'Salidas / Comida', 'Uber / Transporte', 'Viajes / Vacaciones', 'Kiosco / Varios', 'Ropa / Indumentaria', 'Suplementos', 'Insumos Propios'];
-
-    function PreviewBimonetario({ monto, moneda, cotizacion }) {
-      const val = parseFloat(monto);
-      if (!val || isNaN(val) || val <= 0) return null;
-      const rate = parseFloat(cotizacion) || 1450;
-      if (moneda === 'ARS') {
-        const usd = val / rate;
-        return <p className="text-[9px] text-emerald-400 font-mono mt-1 flex items-center gap-1"><i className="fa-solid fa-lock text-[8px]"></i>Se congela en: <strong>${usd.toFixed(2)} USD</strong></p>;
-      } else {
-        const ars = val * rate;
-        return <p className="text-[9px] text-purple-300 font-mono mt-1 flex items-center gap-1"><i className="fa-solid fa-calculator text-[8px]"></i>Equivale a: <strong>${ars.toLocaleString('es-AR', { maximumFractionDigits: 0 })} ARS</strong></p>;
-      }
-    }
-
-    // =========================================================================
-    // 4. APLICACIÓN PRINCIPAL
-    // =========================================================================
-    function MainApp() {
+    // ==========================================
+    // 3. APLICACIÓN PRINCIPAL (FASE 1)
+    // ==========================================
+    function App() {
       const [isLoaded, setIsLoaded] = useState(false);
-      const [syncStatus, setSyncStatus] = useState('Conectando a la nube...');
-
-      // ESTADOS GLOBALES DE LA BASE DE DATOS
-      const [usuarios, setUsuarios] = useState([]);
-      const [ordenes, setOrdenes] = useState([]);
-      const [reparaciones, setReparaciones] = useState([]);
-      const [stockRepuestos, setStockRepuestos] = useState([]);
-      const [gastosNegocio, setGastosNegocio] = useState([]);
-      const [deudasFavor, setDeudasFavor] = useState([]);
-      const [comisionesPagos, setComisionesPagos] = useState([]);
-      const [gastosPersonales, setGastosPersonales] = useState([]);
-      const [gastosFijos, setGastosFijos] = useState([]);
-      const [logs, setLogs] = useState([]);
-      const [listaGremios, setListaGremios] = useState([]);
-      const [cotizacionDolar, setCotizacionDolar] = useState(1450);
-      const [fechaUltimaCotizacion, setFechaUltimaCotizacion] = useState(new Date().toISOString());
-      const [pinPatrimonio, setPinPatrimonio] = useState('123456');
-      const [saldoInicialBruno, setSaldoInicialBruno] = useState(0);
+      const [cloudData, setCloudData] = useState({ ordenes: [] }); // Todo el estado de la DB vive acá
       
-      // ESTADOS DE SESIÓN E INTERFAZ
       const [usuarioSesion, setUsuarioSesion] = useState(null);
       const [loginUser, setLoginUser] = useState('Bruno');
       const [loginPass, setLoginPass] = useState('');
-      const [loginError, setLoginError] = useState('');
-      const [modoOculto, setModoOculto] = useState(false);
-      const [vista, setVista] = useState('dashboard');
 
-      // ESTADOS DE PATRIMONIO PRIVADO
-      const [patrimonioDesbloqueado, setPatrimonioDesbloqueado] = useState(false);
-      const [pinInput, setPinInput] = useState('');
-      const [nuevoPinInput, setNuevoPinInput] = useState('');
-      
-      // ESTADOS DE FORMULARIOS GLOBALES
-      const [modalDolar, setModalDolar] = useState(false);
-      const [nuevaCotizacionInput, setNuevaCotizacionInput] = useState('');
-      const [modalEditarSaldoBruno, setModalEditarSaldoBruno] = useState(false);
-      const [formSaldoBruno, setFormSaldoBruno] = useState({ modo: 'establecer', monto: '', moneda: 'ARS' });
+      // Formulario de ingreso básico para Fase 1
+      const [form, setForm] = useState({ cliente: '', modelo: '', falla: '' });
 
-      // ESTADOS DE INGRESO TALLER
-      const [tipoReparacionIngreso, setTipoReparacionIngreso] = useState('minorista');
-      const [gremioSeleccionado, setGremioSeleccionado] = useState('ICONNECTURE');
-      const [nuevoGremioNombre, setNuevoGremioNombre] = useState('');
-      const [formIngreso, setFormIngreso] = useState({ 
-        cliente_nombre: '', cliente_telefono: '', cliente_telefono_alt: '', cliente_email: '', 
-        origen_cliente: 'Nuevo', equipo_modelo: '', imei_serie: '', prioridad: 'Moderada', 
-        falla_declarada: '', presupuesto_estimado: '', moneda_presupuesto: 'ARS', estado_fisico: '', 
-        tuvo_reparacion_previa: 'no', detalle_reparacion_previa: '', taller_previo: '', fecha_previa: '' 
-      });
-      const [reciboModal, setReciboModal] = useState(null);
-
-      // ESTADOS DE CARGAR REPARACIÓN
-      const [modalCargarReparacion, setModalCargarReparacion] = useState(false);
-      const [equipoSeleccionadoParaReparar, setEquipoSeleccionadoParaReparar] = useState(null);
-      const [itemsRepuestosCarga, setItemsRepuestosCarga] = useState([{ tipo: 'stock', stockId: '', nombreManual: '', costoManual: '', monedaManual: 'USD' }]);
-      const [manoObraInput, setManoObraInput] = useState('');
-      const [monedaManoObra, setMonedaManoObra] = useState('ARS');
-      const [medioPagoInput, setMedioPagoInput] = useState('Efectivo ARS');
-      const [garantiaDiasInput, setGarantiaDiasInput] = useState('30');
-      const [estadoPagoInicialCarga, setEstadoPagoInicialCarga] = useState('Pendiente');
-
-      // ESTADOS DE STOCK Y EDICIÓN
-      const [formNuevoStock, setFormNuevoStock] = useState({ categoria: 'Batería', modelo: '', cantidad: '', costo: '', moneda: 'USD' });
-      const [modalEditStock, setModalEditStock] = useState(null);
-      
-      // ESTADOS GASTOS NEGOCIO
-      const [formGastoNegocio, setFormGastoNegocio] = useState({ concepto: '', proveedor: '', monto: '', moneda: 'ARS', categoria: 'Cadetería', medio_pago: 'Efectivo ARS', estado: 'Pagado' });
-      
-      // ESTADOS ME DEBEN
-      const [formDeudaFavor, setFormDeudaFavor] = useState({ deudor: '', motivo: '', telefono: '', monto: '', moneda: 'ARS' });
-      const [modalPagoParcialDeuda, setModalPagoParcialDeuda] = useState(null);
-      const [formAbonoDeuda, setFormAbonoDeuda] = useState({ monto: '', moneda: 'ARS' });
-      
-      // ESTADOS COMISIONES
-      const [formPagoComision, setFormPagoComision] = useState({ monto: '', moneda: 'ARS', medio_pago: 'Efectivo ARS', nota: '' });
-      
-      // ESTADOS GASTOS PERSONALES / FIJOS
-      const [formGastoPersonal, setFormGastoPersonal] = useState({ desc: '', categoria: 'Gimnasio / Entrenamiento', monto: '', moneda: 'ARS' });
-      const [formGastoFijo, setFormGastoFijo] = useState({ concepto: '', monto: '', moneda: 'ARS', tipo: 'fijo', cuotasTotales: '3' });
-
-      // ESTADOS DE BUSCADORES Y FILTROS EN TIEMPO REAL
-      const [busquedaTaller, setBusquedaTaller] = useState('');
-      const [busquedaReparaciones, setBusquedaReparaciones] = useState('');
-      const [busquedaStock, setBusquedaStock] = useState('');
-      const [busquedaGastos, setBusquedaGastos] = useState('');
-      const [busquedaDeudas, setBusquedaDeudas] = useState('');
-      const [busquedaGarantias, setBusquedaGarantias] = useState('');
-      
-      // FILTROS ADICIONALES RESTAURADOS
-      const [filtroPrioridadTaller, setFiltroPrioridadTaller] = useState('Todas');
-      const [filtroEstadoTaller, setFiltroEstadoTaller] = useState('Todos');
-      const [filtroTipoTaller, setFiltroTipoTaller] = useState('Todos');
-      
-      const [filtroEstadoPagoRep, setFiltroEstadoPagoRep] = useState('Todos');
-      const [filtroTipoClienteRep, setFiltroTipoClienteRep] = useState('Todos');
-      
-      const [filtroCategoriaStock, setFiltroCategoriaStock] = useState('Todas');
-      
-      const [filtroCatGastos, setFiltroCatGastos] = useState('Todas');
-      const [filtroEstadoGastos, setFiltroEstadoGastos] = useState('Todos');
-      
-      const [filtroEstadoDeudas, setFiltroEstadoDeudas] = useState('Pendiente');
-      const [filtroEstadoGarantia, setFiltroEstadoGarantia] = useState('Todas');
-      
-      const [filtroUsuarioLog, setFiltroUsuarioLog] = useState('todos');
-      const [filtroFechaLogDia, setFiltroFechaLogDia] = useState('');
-      const [filtroBuscadorLog, setFiltroBuscadorLog] = useState('');
-
-      // ASISTENTE FINANCIERO Y CUENTAS
-      const [queryDash, setQueryDash] = useState('');
-      const [resDash, setResDash] = useState('');
-      const [passActual, setPassActual] = useState('');
-      const [passNueva, setPassNueva] = useState('');
-      const [msgPass, setMsgPass] = useState('');
-
-      // =========================================================================
-      // LÓGICA DE INICIALIZACIÓN (MIGRACIÓN & CLOUD EXTREMADAMENTE SEGURA)
-      // =========================================================================
-      const aplicarDatos = (p) => {
-        setUsuarios(safeArray(p.usuarios).length ? p.usuarios : USUARIOS_DEFAULT);
-        setOrdenes(safeArray(p.ordenes));
-        setReparaciones(safeArray(p.reparaciones));
-        setStockRepuestos(safeArray(p.stockRepuestos));
-        setGastosNegocio(safeArray(p.gastosNegocio));
-        setDeudasFavor(safeArray(p.deudasFavor));
-        setComisionesPagos(safeArray(p.comisionesPagos));
-        setGastosPersonales(safeArray(p.gastosPersonales));
-        setGastosFijos(safeArray(p.gastosFijos));
-        setLogs(safeArray(p.logs));
-        setListaGremios(safeArray(p.listaGremios).length ? p.listaGremios : GREMIOS_DEFAULT);
-        setCotizacionDolar(parseFloat(p.cotizacionDolar) || 1450);
-        setPinPatrimonio(p.pinPatrimonio || '123456');
-        setSaldoInicialBruno(parseFloat(p.saldoInicialBruno) || 0);
-        setFechaUltimaCotizacion(p.fechaUltimaCotizacion || new Date().toISOString());
-      };
-
-      const loadFromLocalFallback = () => {
-        setSyncStatus('Modo Offline: Cargando local...');
-        aplicarDatos({
-          usuarios: loadStorage('ic_usuarios', USUARIOS_DEFAULT),
-          ordenes: loadStorage('ic_ordenes', []),
-          reparaciones: loadStorage('ic_reparaciones', []),
-          stockRepuestos: loadStorage('ic_stock_repuestos', []),
-          gastosNegocio: loadStorage('ic_gastos_negocio', []),
-          deudasFavor: loadStorage('ic_deudas_favor', []),
-          comisionesPagos: loadStorage('ic_comisiones_pagos', []),
-          gastosPersonales: loadStorage('ic_gastos_personales', []),
-          gastosFijos: loadStorage('ic_gastos_fijos', []),
-          logs: loadStorage('ic_logs', []),
-          listaGremios: loadStorage('ic_lista_gremios', GREMIOS_DEFAULT),
-          cotizacionDolar: localStorage.getItem('ic_cotizacion_dolar'),
-          pinPatrimonio: localStorage.getItem('ic_pin_patrimonio'),
-          saldoInicialBruno: localStorage.getItem('ic_saldo_inicial_bruno'),
-          fechaUltimaCotizacion: localStorage.getItem('ic_fecha_cotizacion')
-        });
-      };
-
+      // LECTURA INICIAL DE LA NUBE (Solo lee, nunca sobreescribe)
       useEffect(() => {
-        async function initApp() {
-          if (!supabase) {
-            loadFromLocalFallback();
-            setTimeout(() => setIsLoaded(true), 600);
-            return;
-          }
-
+        async function fetchNube() {
           try {
-            setSyncStatus('Sincronizando...');
             const { data, error } = await supabase.from('iconnecture_data').select('payload').eq('id', 1).single();
             if (error) throw error;
-
-            if (data && data.payload && Object.keys(data.payload).length > 0) {
-              aplicarDatos(data.payload);
-              setSyncStatus('¡Conexión Exitosa!');
-            } else {
-              setSyncStatus('Nube vacía. Migrando...');
-              loadFromLocalFallback();
+            if (data && data.payload) {
+              setCloudData({ ordenes: Array.isArray(data.payload.ordenes) ? data.payload.ordenes : [] });
             }
           } catch (err) {
-            console.error("Error al conectar con Supabase:", err);
-            loadFromLocalFallback();
+            console.error("Error al leer Supabase:", err);
+            alert("No se pudo conectar a la nube. Revisá tu internet.");
           }
-          setTimeout(() => setIsLoaded(true), 600);
+          setIsLoaded(true);
         }
-        initApp();
+        fetchNube();
       }, []);
 
-      // MOTOR DE SINCRONIZACIÓN AUTOMÁTICA
-      useEffect(() => {
-        if (!isLoaded) return;
-        const payload = { 
-          usuarios, ordenes, reparaciones, stockRepuestos, gastosNegocio, 
-          deudasFavor, comisionesPagos, gastosPersonales, gastosFijos, 
-          logs, listaGremios, cotizacionDolar, pinPatrimonio, saldoInicialBruno,
-          fechaUltimaCotizacion
-        };
-        
-        localStorage.setItem('ic_master_backup', JSON.stringify(payload));
-        
-        if (supabase) {
-          supabase.from('iconnecture_data').update({ payload }).eq('id', 1).then(({error}) => {
-            if (error) console.error("Error sincronizando:", error);
-          });
+      // ESCRITURA EXPLÍCITA EN LA NUBE
+      const guardarEnNube = async (nuevoPayload) => {
+        // Actualiza la pantalla rápido
+        setCloudData(nuevoPayload);
+        // Guarda en la nube de fondo
+        const { error } = await supabase.from('iconnecture_data').update({ payload: nuevoPayload }).eq('id', 1);
+        if (error) {
+          alert("Error crítico al guardar en la nube.");
+          console.error(error);
         }
-      }, [isLoaded, usuarios, ordenes, reparaciones, stockRepuestos, gastosNegocio, deudasFavor, comisionesPagos, gastosPersonales, gastosFijos, logs, listaGremios, cotizacionDolar, pinPatrimonio, saldoInicialBruno, fechaUltimaCotizacion]);
-
-
-      // =========================================================================
-      // UTILIDADES Y FUNCIONES DEL NEGOCIO
-      // =========================================================================
-      const registrarLog = (modulo, accion, detalles) => {
-        const nuevo = { id: Date.now() + Math.floor(Math.random()*1000), usuario: usuarioSesion ? usuarioSesion.nombre : 'Sistema', modulo, accion, detalles, fecha: new Date().toISOString() };
-        setLogs(prev => [nuevo, ...safeArray(prev)]);
       };
 
-      const congelarMonto = (montoRaw, monedaSeleccionada) => {
-        const val = parseFloat(montoRaw) || 0;
-        const rate = parseFloat(cotizacionDolar) || 1450;
-        const monto_usd = monedaSeleccionada === 'ARS' ? (val / rate) : val;
-        const monto_ars_historico = monedaSeleccionada === 'ARS' ? val : (val * rate);
-        return { monto_usd, monto_original: val, moneda_original: monedaSeleccionada, cotizacion_historica: rate, monto_ars_historico };
-      };
-
-      const fmtMoney = (amountUSD, currency = 'USD') => {
-        if (modoOculto) return '***';
-        const num = parseFloat(amountUSD) || 0;
-        if (currency === 'ARS') return `$ ${(num * cotizacionDolar).toLocaleString('es-AR', { maximumFractionDigits: 0 })} ARS`;
-        return `$ ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
-      };
-
-      const fmtHistorico = (r) => {
-        if (modoOculto || !r) return '';
-        if (r.moneda_original === 'ARS' && r.monto_original) return `Cargado: $${parseFloat(r.monto_original).toLocaleString('es-AR')} ARS (Cotiz: $${r.cotizacion_historica})`;
-        return r.cotizacion_historica ? `Base USD (Cotiz: $${r.cotizacion_historica})` : 'Base USD';
-      };
-
-      const validarImei = (imei) => {
-        if (!imei) return { valido: true, msg: '' };
-        if (/\s/.test(imei)) return { valido: false, msg: 'Sin espacios.' };
-        if (!/^\d+$/.test(imei)) return { valido: false, msg: 'Solo números.' };
-        if (imei.length !== 15) return { valido: false, msg: `Debe tener 15 dígitos (tiene ${imei.length}).` };
-        return { valido: true, msg: 'IMEI válido' };
-      };
-
-      const cotizacionVencida = useMemo(() => {
-        if(!fechaUltimaCotizacion) return true;
-        const diffHoras = (new Date() - new Date(fechaUltimaCotizacion)) / 3600000;
-        return diffHoras >= 24;
-      }, [fechaUltimaCotizacion]);
-
-
-      // CÁLCULOS CENTRALIZADOS DE RENTABILIDAD Y COMISIONES
-      const comisionesCalculadas = useMemo(() => {
-        let ganadoGremio = 0, ganadoMinoristaBruno = 0, ganadoMinoristaMateo = 0, brunoHoy = 0, brunoMes = 0;
-        const hoyStr = new Date().toISOString().split('T')[0];
-        const mesStr = hoyStr.slice(0, 7);
-
-        safeArray(reparaciones).forEach(r => {
-          const comisionBruno = r.tipo_cliente === 'gremio' ? (r.mano_obra_usd || 0) : ((r.mano_obra_usd || 0) * 0.5);
-          if (r.estado_pago === 'Pagado') {
-            if (r.tipo_cliente === 'gremio') ganadoGremio += comisionBruno;
-            else { ganadoMinoristaBruno += comisionBruno; ganadoMinoristaMateo += ((r.mano_obra_usd || 0) * 0.5); }
-            const f = r.fecha_pago || r.fecha_completado || '';
-            if (f.startsWith(hoyStr)) brunoHoy += comisionBruno;
-            if (f.startsWith(mesStr)) brunoMes += comisionBruno;
-          }
-        });
-        const totalHistoricoGanadoBruno = ganadoGremio + ganadoMinoristaBruno;
-        const totalPagadoABruno = safeArray(comisionesPagos).reduce((acc, p) => acc + (p.monto_usd || 0), 0);
-        return { ganadoGremio, ganadoMinoristaBruno, ganadoMinoristaMateo, totalHistoricoGanadoBruno, totalPagadoABruno, saldoDeudaNegocioConBruno: totalHistoricoGanadoBruno - totalPagadoABruno, brunoHoy, brunoMes };
-      }, [reparaciones, comisionesPagos]);
-
-      const totalValorStock = useMemo(() => safeArray(stockRepuestos).reduce((acc, s) => acc + ((s.cantidad || 0) * (s.costo_unitario_usd || 0)), 0), [stockRepuestos]);
-      const totalGastosFijosMensuales = useMemo(() => safeArray(gastosFijos).reduce((acc, g) => acc + (g.monto_usd || 0), 0), [gastosFijos]);
-
-      const alertasSistema = useMemo(() => {
-        const hoy = new Date();
-        const demorados = safeArray(ordenes).filter(o => o.estado !== 'Entregado' && Math.floor((hoy - new Date(o.fecha_ingreso)) / 86400000) >= 3);
-        const deudasPend = safeArray(deudasFavor).filter(d => d.estado === 'Pendiente');
-        const ctasPagar = safeArray(gastosNegocio).filter(g => g.estado === 'Pendiente');
-        const stockBajo = safeArray(stockRepuestos).filter(s => s.cantidad <= 2);
-        const garantiasPorVencer = safeArray(reparaciones).filter(r => {
-          if (r.estado_pago !== 'Pagado' || !r.garantia_dias) return false;
-          const f = r.fecha_pago || r.fecha_completado;
-          if(!f) return false;
-          const res = r.garantia_dias - Math.floor((hoy - new Date(f)) / 86400000);
-          return res >= 0 && res <= 3;
-        });
-        return { demorados, deudasPend, ctasPagar, stockBajo, garantiasPorVencer, total: demorados.length + deudasPend.length + ctasPagar.length + stockBajo.length + garantiasPorVencer.length };
-      }, [ordenes, deudasFavor, gastosNegocio, stockRepuestos, reparaciones]);
-
-
-      // =========================================================================
-      // LÓGICA DE EVENTOS (SUBMITS Y BOTONES)
-      // =========================================================================
       const handleLogin = (e) => {
         e.preventDefault();
-        const found = safeArray(usuarios).find(u => u.nombre === loginUser);
-        if (found && found.pass === loginPass) {
-          setUsuarioSesion(found); setLoginError(''); setLoginPass('');
-          registrarLog('Seguridad', 'Inicio Sesión', `Acceso de ${found.nombre}`);
-        } else { setLoginError('Contraseña incorrecta'); }
+        const u = USUARIOS.find(x => x.nombre === loginUser && x.pass === loginPass);
+        if (u) setUsuarioSesion(u);
+        else alert('Contraseña incorrecta');
       };
 
-      const cambiarPasswordUsuario = (e) => {
+      const handleCrearOrden = (e) => {
         e.preventDefault();
-        if (passActual !== usuarioSesion.pass) {
-          setMsgPass('❌ Contraseña actual incorrecta.');
-          return;
-        }
-        if (!passNueva || passNueva.length < 4) {
-          setMsgPass('❌ Mínimo 4 caracteres.');
-          return;
-        }
-        const actualizados = usuarios.map(u => u.nombre === usuarioSesion.nombre ? { ...u, pass: passNueva } : u);
-        setUsuarios(actualizados);
-        setUsuarioSesion({ ...usuarioSesion, pass: passNueva });
-        setPassActual('');
-        setPassNueva('');
-        setMsgPass('✅ Contraseña actualizada con éxito.');
-        registrarLog('Seguridad', 'Cambio de Clave', `${usuarioSesion.nombre} actualizó su contraseña.`);
-      };
+        const nuevaOrden = {
+          id: Date.now(),
+          cliente: form.cliente,
+          modelo: form.modelo,
+          falla: form.falla,
+          estado: 'Recibido',
+          fecha: new Date().toISOString()
+        };
 
-      const handleGuardarIngreso = (e) => {
-        e.preventDefault();
-        const chk = validarImei(formIngreso.imei_serie);
-        if (formIngreso.imei_serie && !chk.valido) return alert(`Error IMEI: ${chk.msg}`);
+        // Creamos el nuevo paquete de datos y lo mandamos a la función segura
+        const nuevasOrdenes = [nuevaOrden, ...cloudData.ordenes];
+        guardarEnNube({ ...cloudData, ordenes: nuevasOrdenes });
         
-        let nom = formIngreso.cliente_nombre, tel = formIngreso.cliente_telefono;
-        if (tipoReparacionIngreso === 'gremio') {
-          if (gremioSeleccionado === 'NUEVO') {
-            if (!nuevoGremioNombre.trim()) return alert('Ingrese nombre del gremio.');
-            nom = `Gremio: ${nuevoGremioNombre.trim()}`;
-            if (!safeArray(listaGremios).includes(nuevoGremioNombre.trim())) setListaGremios([...listaGremios, nuevoGremioNombre.trim()]);
-          } else { nom = `Gremio: ${gremioSeleccionado}`; }
-          tel = 'Gremio';
-        }
-
-        const pres = congelarMonto(formIngreso.presupuesto_estimado, formIngreso.moneda_presupuesto);
-        const nueva = {
-          id: Date.now(), tipo_cliente: tipoReparacionIngreso, cliente_nombre: nom, cliente_telefono: tel,
-          cliente_telefono_alt: tipoReparacionIngreso === 'minorista' ? formIngreso.cliente_telefono_alt : 'N/A',
-          equipo_modelo: formIngreso.equipo_modelo, imei_serie: formIngreso.imei_serie, prioridad: formIngreso.prioridad,
-          falla_declarada: formIngreso.falla_declarada, presupuesto_usd: pres.monto_usd, moneda_original: pres.moneda_original,
-          monto_original: pres.monto_original, cotizacion_historica: pres.cotizacion_historica, estado_fisico: formIngreso.estado_fisico,
-          estado: 'Recibido', fecha_ingreso: new Date().toISOString()
-        };
-        setOrdenes([nueva, ...safeArray(ordenes)]);
-        registrarLog('Taller', 'Ingreso Equipo', `${formIngreso.equipo_modelo} (${nom})`);
-        setFormIngreso({ cliente_nombre: '', cliente_telefono: '', cliente_telefono_alt: '', cliente_email: '', origen_cliente: 'Nuevo', equipo_modelo: '', imei_serie: '', prioridad: 'Moderada', falla_declarada: '', presupuesto_estimado: '', moneda_presupuesto: 'ARS', estado_fisico: '', tuvo_reparacion_previa: 'no', detalle_reparacion_previa: '', taller_previo: '', fecha_previa: '' });
-        setNuevoGremioNombre('');
+        setForm({ cliente: '', modelo: '', falla: '' });
       };
 
-      const handleConfirmarReparacion = () => {
-        if (!equipoSeleccionadoParaReparar) return;
-        let costoTotal = 0;
-        const procesados = [];
-        const descStock = {};
-
-        itemsRepuestosCarga.forEach(i => {
-          if (i.tipo === 'stock' && i.stockId) {
-            const st = safeArray(stockRepuestos).find(s => s.id === parseInt(i.stockId));
-            if (st) {
-              costoTotal += st.costo_unitario_usd || 0;
-              procesados.push({ nombre: `${st.categoria}: ${st.modelo}`, costo_usd: st.costo_unitario_usd || 0 });
-              descStock[st.id] = (descStock[st.id] || 0) + 1;
-            }
-          } else if (i.tipo === 'manual' && i.nombreManual.trim()) {
-            const c = congelarMonto(i.costoManual, i.monedaManual);
-            costoTotal += c.monto_usd;
-            procesados.push({ nombre: i.nombreManual.trim(), costo_usd: c.monto_usd, moneda_original: c.moneda_original, monto_original: c.monto_original, cotizacion_historica: c.cotizacion_historica });
-          }
-        });
-
-        if (Object.keys(descStock).length > 0) {
-          setStockRepuestos(safeArray(stockRepuestos).map(s => descStock[s.id] ? { ...s, cantidad: Math.max(0, s.cantidad - descStock[s.id]) } : s));
-        }
-
-        const mo = congelarMonto(manoObraInput, monedaManoObra);
-        const esPagado = estadoPagoInicialCarga === 'Pagado';
-        const nuevaRep = {
-          id: Date.now(), orden_id: equipoSeleccionadoParaReparar.id, cliente_nombre: equipoSeleccionadoParaReparar.cliente_nombre,
-          cliente_telefono: equipoSeleccionadoParaReparar.cliente_telefono, equipo_modelo: equipoSeleccionadoParaReparar.equipo_modelo,
-          imei_serie: equipoSeleccionadoParaReparar.imei_serie, tipo_cliente: equipoSeleccionadoParaReparar.tipo_cliente,
-          tecnico: tecnicoReparacion, repuestos: procesados.length ? procesados : [{ nombre: 'Mantenimiento', costo_usd: 0 }],
-          costo_repuestos_usd: costoTotal, mano_obra_usd: mo.monto_usd, total_usd: costoTotal + mo.monto_usd,
-          moneda_original: mo.moneda_original, monto_original: mo.monto_original, cotizacion_historica: mo.cotizacion_historica,
-          medio_pago: medioPagoInput, estado_pago: estadoPagoInicialCarga, fecha_completado: new Date().toISOString(),
-          fecha_pago: esPagado ? new Date().toISOString() : null, garantia_dias: parseInt(garantiaDiasInput) || 0
-        };
-        setReparaciones([nuevaRep, ...safeArray(reparaciones)]);
-        setOrdenes(safeArray(ordenes).map(o => o.id === equipoSeleccionadoParaReparar.id ? { ...o, estado: esPagado ? 'Entregado' : 'Listo para Entregar', fecha_entrega: esPagado ? new Date().toISOString() : null } : o));
-        registrarLog('Reparaciones', 'Cierre Trabajo', `${nuevaRep.equipo_modelo}`);
-        setEquipoSeleccionadoParaReparar(null); setModalCargarReparacion(false);
-        setItemsRepuestosCarga([{ tipo: 'stock', stockId: '', nombreManual: '', costoManual: '', monedaManual: 'USD' }]); setManoObraInput('');
+      const cambiarEstadoOrden = (idOrden, nuevoEstado) => {
+        const nuevasOrdenes = cloudData.ordenes.map(o => o.id === idOrden ? { ...o, estado: nuevoEstado } : o);
+        guardarEnNube({ ...cloudData, ordenes: nuevasOrdenes });
       };
 
-      const marcarPagadoReparacion = (id) => {
-        const rep = safeArray(reparaciones).find(r => r.id === id);
-        if (!rep) return;
-        const ahora = new Date().toISOString();
-        setReparaciones(safeArray(reparaciones).map(r => r.id === id ? { ...r, estado_pago: 'Pagado', fecha_pago: ahora } : r));
-        setOrdenes(safeArray(ordenes).map(o => o.id === rep.orden_id ? { ...o, estado: 'Entregado', fecha_entrega: ahora } : o));
-        registrarLog('Finanzas', 'Cobro', `Cobro de ${rep.equipo_modelo}`);
-      };
-
-      const ejecutarAsistenteFinanciero = (e) => {
-        if(e) e.preventDefault();
-        const q = queryDash.toLowerCase().trim();
-        if (!q) return;
-        const hoyStr = new Date().toISOString().split('T')[0];
-        const mesStr = hoyStr.slice(0, 7);
-        const pagadas = safeArray(reparaciones).filter(r => r.estado_pago === 'Pagado');
-        
-        if (q.includes('hoy')) {
-          const gan = pagadas.filter(r => (r.fecha_pago || '').startsWith(hoyStr)).reduce((a, r) => a + (r.mano_obra_usd || 0), 0);
-          setResDash(`⚡ Hoy: Ganancia Neta ${fmtMoney(gan)} (${fmtMoney(gan, 'ARS')}).`);
-        } else if (q.includes('mes')) {
-          const gan = pagadas.filter(r => (r.fecha_pago || '').startsWith(mesStr)).reduce((a, r) => a + (r.mano_obra_usd || 0), 0);
-          setResDash(`📊 Este Mes: Ganancia Neta ${fmtMoney(gan)} (${fmtMoney(gan, 'ARS')}).`);
-        } else if (q.includes('gast')) {
-          const gas = safeArray(gastosNegocio).reduce((a, g) => a + (g.monto_usd || 0), 0);
-          setResDash(`🧾 Gastos acumulados: ${fmtMoney(gas)} (${fmtMoney(gas, 'ARS')}).`);
-        } else if (q.includes('deben')) {
-          const de = safeArray(deudasFavor).filter(d => d.estado === 'Pendiente').reduce((a, d) => a + (d.monto_usd || 0), 0);
-          setResDash(`🤝 Total pendiente a cobrar: ${fmtMoney(de)} (${fmtMoney(de, 'ARS')}).`);
-        } else {
-          setResDash(`💰 Histórico General: Ganancia Neta total ${fmtMoney(pagadas.reduce((a, r) => a + (r.mano_obra_usd || 0), 0))}.`);
-        }
-      };
-
-      const importarBackupJson = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const data = JSON.parse(event.target.result);
-            if (data.ordenes) setOrdenes(data.ordenes);
-            if (data.reparaciones) setReparaciones(data.reparaciones);
-            if (data.stockRepuestos) setStockRepuestos(data.stockRepuestos);
-            if (data.gastosNegocio) setGastosNegocio(data.gastosNegocio);
-            if (data.deudasFavor) setDeudasFavor(data.deudasFavor);
-            if (data.comisionesPagos) setComisionesPagos(data.comisionesPagos);
-            if (data.gastosPersonales) setGastosPersonales(data.gastosPersonales);
-            if (data.gastosFijos) setGastosFijos(data.gastosFijos);
-            if (data.saldoInicialBruno !== undefined) setSaldoInicialBruno(data.saldoInicialBruno);
-            if (data.cotizacionDolar) setCotizacionDolar(data.cotizacionDolar);
-            alert('✅ Datos importados correctamente.');
-          } catch (err) { alert('❌ Archivo de respaldo inválido.'); }
-        };
-        reader.readAsText(file);
-      };
-
-      // =========================================================================
-      // RENDER PRINCIPAL
-      // =========================================================================
-      if (!isLoaded) {
-        return (
-          <div className="flex items-center justify-center min-h-screen bg-slate-950 px-4">
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-purple-600 animate-pulse flex items-center justify-center text-white font-black text-2xl mx-auto"><i className="fa-solid fa-cloud-arrow-down"></i></div>
-              <h2 className="text-white font-bold text-sm tracking-widest uppercase">{syncStatus}</h2>
-            </div>
-          </div>
-        );
-      }
+      // --- PANTALLAS ---
+      if (!isLoaded) return <div className="text-center p-20 text-xl font-bold">Conectando a la Nube...</div>;
 
       if (!usuarioSesion) {
         return (
-          <div className="flex items-center justify-center min-h-screen bg-slate-950 px-4">
-            <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5 fade-in">
-              <div className="text-center space-y-1.5">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center text-white font-black text-2xl mx-auto shadow-lg">IC</div>
-                <h1 className="text-xl font-extrabold text-white tracking-tight mt-2">ICONNECTURE</h1>
-                <p className="text-[9px] text-purple-400 font-bold tracking-widest uppercase">System Suite Pro</p>
+          <div className="flex items-center justify-center min-h-screen">
+            <form onSubmit={handleLogin} className="bg-slate-900 p-8 rounded-xl border border-slate-800 space-y-4 max-w-sm w-full">
+              <h1 className="text-2xl font-black text-center text-white mb-6">ICONNECTURE<br/><span className="text-sm text-purple-400">FASE 1: CORE</span></h1>
+              <div className="grid grid-cols-2 gap-2">
+                {USUARIOS.map(u => (
+                  <button key={u.id} type="button" onClick={() => setLoginUser(u.nombre)} className={`py-2 rounded-lg font-bold border ${loginUser === u.nombre ? 'bg-purple-600 text-white' : 'bg-slate-950 text-slate-400'}`}>
+                    {u.nombre}
+                  </button>
+                ))}
               </div>
-              <form onSubmit={handleLogin} className="space-y-4 pt-1">
-                <div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {safeArray(usuarios).map(u => (
-                      <button key={u.id} type="button" onClick={() => { setLoginUser(u.nombre); setLoginError(''); }} className={`py-2 px-2 rounded-xl border transition-all flex flex-col items-center justify-center ${loginUser === u.nombre ? 'bg-purple-600/20 border-purple-500 text-purple-300' : 'bg-slate-950 border-slate-800 text-slate-400'}`}>
-                        <span className="font-bold text-white text-xs">{u.nombre}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <input type="password" required value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="Contraseña" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-purple-500 text-center font-mono text-sm tracking-widest shadow-inner" />
-                </div>
-                {loginError && <p className="text-[10px] text-rose-400 font-bold text-center bg-rose-950/40 py-2 rounded-lg">{loginError}</p>}
-                <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg text-[10px] tracking-widest uppercase mt-1">Ingresar</button>
-              </form>
-            </div>
+              <input type="password" placeholder="Contraseña" required value={loginPass} onChange={e => setLoginPass(e.target.value)} className="w-full bg-slate-950 px-3 py-2 rounded-lg text-center font-mono text-lg text-white" />
+              <button type="submit" className="w-full bg-purple-600 text-white font-bold py-3 rounded-lg">Entrar</button>
+            </form>
           </div>
         );
       }
 
       return (
-        <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans text-xs">
-          
-          {/* ========================================================================= */}
-          {/* BARRA LATERAL (W-64 COMPACTA) */}
-          {/* ========================================================================= */}
-          <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between p-4 overflow-y-auto hide-scrollbar shrink-0">
-            <div>
-              <div className="flex items-center gap-3 px-1 py-2 mb-4 border-b border-slate-800">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center text-white font-black text-lg shadow-lg">IC</div>
-                <div>
-                  <h1 className="font-extrabold text-sm text-white leading-tight">ICONNECTURE</h1>
-                  <p className="text-[9px] text-purple-400 font-bold tracking-widest uppercase">System Suite</p>
-                </div>
-              </div>
-              <nav className="space-y-1">
-                {[
-                  { id: 'dashboard', label: 'Resumen General', icon: 'fa-chart-pie', badge: alertasSistema.total > 0 ? alertasSistema.total : null, color: 'bg-purple-500' },
-                  { id: 'taller', label: 'Taller & Recepción', icon: 'fa-wrench', badge: alertasSistema.demorados.length || null, color: 'bg-rose-600' },
-                  { id: 'reparaciones', label: 'Reparaciones', icon: 'fa-microchip', badge: safeArray(reparaciones).filter(r => r.estado_pago === 'Pendiente').length || null, color: 'bg-amber-600' },
-                  { id: 'garantias', label: 'Control Garantías', icon: 'fa-shield-halved', badge: alertasSistema.garantiasPorVencer.length || null, color: 'bg-amber-600' },
-                  { id: 'stock', label: 'Stock Repuestos', icon: 'fa-boxes-stacked', badge: alertasSistema.stockBajo.length || null, color: 'bg-rose-600' },
-                  { id: 'gastos', label: 'Gastos Operativos', icon: 'fa-receipt', badge: alertasSistema.ctasPagar.length || null, color: 'bg-rose-600' },
-                  { id: 'medeben', label: 'Me Deben', icon: 'fa-hand-holding-dollar', badge: alertasSistema.deudasPend.length || null, color: 'bg-emerald-600' },
-                  { id: 'comisiones', label: 'Comisiones Bruno', icon: 'fa-wallet' },
-                  { id: 'socios', label: 'Socios y Reparto', icon: 'fa-users-gear' },
-                  { id: 'estadisticas', label: 'Analíticas', icon: 'fa-chart-line' },
-                  { id: 'actividad', label: 'Auditoría (Logs)', icon: 'fa-clock-rotate-left' },
-                  { id: 'cuentas', label: 'Gestión Cuentas', icon: 'fa-user-lock' },
-                  { id: 'patrimonio', label: 'Patrimonio Bruno 🔒', icon: 'fa-lock' },
-                  { id: 'config', label: 'Backup / Nube', icon: 'fa-cloud' }
-                ].map(item => (
-                  <button key={item.id} onClick={() => { setVista(item.id); if(item.id !== 'patrimonio'){ setPatrimonioDesbloqueado(false); setPinInput(''); } }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg font-bold transition-all ${vista === item.id ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:bg-slate-800'}`}>
-                    <div className="flex items-center gap-3">
-                      <i className={`fa-solid ${item.icon} w-4 text-center text-[13px] ${vista === item.id ? 'text-white' : 'text-slate-500'}`}></i>
-                      <span>{item.label}</span>
-                    </div>
-                    {item.badge && <span className={`${item.color} text-white text-[9px] font-black px-1.5 py-0.5 rounded`}>{item.badge}</span>}
-                  </button>
-                ))}
-              </nav>
-            </div>
-            <div className="border-t border-slate-800 pt-3 mt-4">
-              <div className="flex items-center justify-between px-2 bg-slate-950 py-2 rounded-lg border border-slate-800">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-purple-950 border border-purple-500/50 flex items-center justify-center text-purple-300 font-bold text-xs">{usuarioSesion.nombre.charAt(0)}</div>
-                  <div>
-                    <p className="text-[11px] font-bold text-white leading-tight">{usuarioSesion.nombre}</p>
-                    <p className="text-[8px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">{usuarioSesion.rol.split('/')[0]}</p>
-                  </div>
-                </div>
-                <button onClick={() => setUsuarioSesion(null)} className="text-slate-500 hover:text-rose-400 transition-colors p-1.5"><i className="fa-solid fa-power-off"></i></button>
-              </div>
+        <div className="flex h-screen overflow-hidden">
+          {/* BARRA LATERAL MÍNIMA */}
+          <aside className="w-48 bg-slate-900 border-r border-slate-800 p-4 flex flex-col">
+            <h2 className="font-black text-white mb-6 text-center">ICONNECTURE</h2>
+            <button className="bg-purple-600 text-white font-bold py-2 rounded-lg mb-auto">Taller y Recepción</button>
+            <div className="text-center text-slate-500 pt-4 border-t border-slate-800">
+              {usuarioSesion.nombre} <br/>
+              <button onClick={() => setUsuarioSesion(null)} className="text-rose-400 mt-2">Salir</button>
             </div>
           </aside>
 
-          {/* ========================================================================= */}
-          {/* CONTENIDO PRINCIPAL */}
-          {/* ========================================================================= */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
-            <header className="bg-slate-900 border-b border-slate-800 px-6 py-3 flex justify-between items-center sticky top-0 z-10">
-              <div className="flex items-center gap-3">
-                <button onClick={() => { setNuevaCotizacionInput(cotizacionDolar.toString()); setModalDolar(true); }} className={`border px-3 py-1.5 rounded-lg font-mono flex items-center gap-2 transition-all text-xs ${cotizacionVencida ? 'bg-amber-950/50 border-amber-500 text-amber-300 animate-pulse' : 'bg-slate-950 border-slate-700 hover:border-purple-500 text-purple-300'}`}>
-                  <i className="fa-solid fa-dollar-sign text-emerald-400"></i>
-                  <span>Dólar Hoy: <strong className="text-white">${cotizacionDolar} ARS</strong></span>
-                  {cotizacionVencida && <span className="text-[9px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.5 rounded ml-1">+24h ¡Fijar!</span>}
-                </button>
+          {/* ÁREA DE TRABAJO PRINCIPAL */}
+          <main className="flex-1 overflow-y-auto p-8">
+            <h2 className="text-2xl font-bold text-white mb-6">Recepción de Equipos (Prueba Cloud)</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* FORMULARIO */}
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 h-fit">
+                <h3 className="font-bold text-lg mb-4 text-white">Ingresar Equipo</h3>
+                <form onSubmit={handleCrearOrden} className="space-y-4">
+                  <input type="text" required placeholder="Nombre del Cliente" value={form.cliente} onChange={e => setForm({...form, cliente: e.target.value})} className="w-full bg-slate-950 px-3 py-2 rounded-lg text-white" />
+                  <input type="text" required placeholder="Modelo (Ej: iPhone 11)" value={form.modelo} onChange={e => setForm({...form, modelo: e.target.value})} className="w-full bg-slate-950 px-3 py-2 rounded-lg text-white" />
+                  <input type="text" required placeholder="Falla / Trabajo a realizar" value={form.falla} onChange={e => setForm({...form, falla: e.target.value})} className="w-full bg-slate-950 px-3 py-2 rounded-lg text-white" />
+                  <button type="submit" className="w-full bg-purple-600 text-white font-bold py-2.5 rounded-lg">Guardar en la Nube</button>
+                </form>
               </div>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setModoOculto(!modoOculto)} className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-2 border transition-all ${modoOculto ? 'bg-amber-950/40 border-amber-800 text-amber-400' : 'bg-slate-950 border-slate-700 text-slate-300 hover:text-white'}`}>
-                  <i className={`fa-solid ${modoOculto ? 'fa-eye-slash' : 'fa-eye'}`}></i> {modoOculto ? 'Oculto' : 'Mostrador'}
-                </button>
-              </div>
-            </header>
 
-            <main className="flex-1 overflow-y-auto p-5 lg:p-8 fade-in relative">
-              
-              {/* ==================== 1. DASHBOARD ==================== */}
-              {vista === 'dashboard' && (() => {
-                const mesActual = new Date().toISOString().slice(0, 7);
-                const pagadas = safeArray(reparaciones).filter(r => r.estado_pago === 'Pagado');
-                const facTotal = pagadas.reduce((a, r) => a + (r.total_usd || 0), 0);
-                const ganTotal = pagadas.reduce((a, r) => a + (r.mano_obra_usd || 0), 0);
-                return (
-                  <div className="space-y-6 max-w-7xl mx-auto fade-in">
-                    <header><h2 className="text-xl font-bold text-white tracking-tight">Resumen General</h2></header>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm hover:border-blue-500/50 transition-colors"><p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1">Facturación Bruta</p><h3 className="text-2xl font-black text-blue-400">{fmtMoney(facTotal)}</h3></div>
-                      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm hover:border-emerald-500/50 transition-colors"><p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1">Ganancia Neta</p><h3 className="text-2xl font-black text-emerald-400">{fmtMoney(ganTotal)}</h3></div>
-                      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm hover:border-purple-500/50 transition-colors"><p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1">Stock Taller</p><h3 className="text-2xl font-black text-purple-400">{fmtMoney(totalValorStock)}</h3></div>
-                      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm"><p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1">Comisión Bruno (Deuda)</p><h3 className={`text-2xl font-black ${comisionesCalculadas.saldoDeudaNegocioConBruno >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{fmtMoney(comisionesCalculadas.saldoDeudaNegocioConBruno)}</h3></div>
-                    </div>
-                    <div className="bg-slate-900 border border-purple-900/40 rounded-xl p-5 flex flex-col md:flex-row gap-3 items-center">
-                      <i className="fa-solid fa-robot text-purple-400 text-lg"></i>
-                      <form onSubmit={ejecutarAsistenteFinanciero} className="flex-1 flex gap-2 w-full">
-                        <input type="text" value={queryDash} onChange={e=>setQueryDash(e.target.value)} placeholder="Asistente financiero: Ej: ¿Cuánto gané este mes?" className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none" />
-                        <button type="submit" className="bg-purple-600 text-white font-bold px-4 py-2 rounded-lg">Preguntar</button>
-                      </form>
-                      {resDash && <div className="text-emerald-300 font-medium text-xs bg-emerald-950/30 px-3 py-2 rounded-lg">{resDash}</div>}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* ==================== 2. TALLER Y RECEPCIÓN ==================== */}
-              {vista === 'taller' && (() => {
-                const checkImei = validarImei(formIngreso.imei_serie);
-                const equiposActivos = safeArray(ordenes).filter(o => o.estado !== 'Entregado').filter(o => {
-                  const q = safeString(busquedaTaller);
-                  return !q || safeString(o.equipo_modelo).includes(q) || safeString(o.cliente_nombre).includes(q) || safeString(o.imei_serie).includes(q);
-                });
-                return (
-                  <div className="space-y-6 max-w-7xl mx-auto fade-in">
-                    <header><h2 className="text-xl font-bold text-white tracking-tight">Recepción y Taller</h2></header>
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                      <div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 h-fit">
-                        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                          <h3 className="text-sm font-bold text-white">Nuevo Ingreso</h3>
-                          <div className="flex gap-1 bg-slate-950 p-1 rounded-md border border-slate-800 shadow-inner">
-                            <button type="button" onClick={() => setTipoReparacionIngreso('minorista')} className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${tipoReparacionIngreso === 'minorista' ? 'bg-purple-600 text-white' : 'text-slate-400'}`}>Minorista</button>
-                            <button type="button" onClick={() => setTipoReparacionIngreso('gremio')} className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${tipoReparacionIngreso === 'gremio' ? 'bg-amber-600 text-white' : 'text-slate-400'}`}>Gremio</button>
-                          </div>
-                        </div>
-                        <form onSubmit={handleGuardarIngreso} className="space-y-3">
-                          {tipoReparacionIngreso === 'minorista' ? (
-                            <div className="space-y-2 fade-in">
-                              <input type="text" required value={formIngreso.cliente_nombre} onChange={e => setFormIngreso({...formIngreso, cliente_nombre: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" placeholder="Cliente *" />
-                              <div className="grid grid-cols-2 gap-2">
-                                <input type="text" required value={formIngreso.cliente_telefono} onChange={e => setFormIngreso({...formIngreso, cliente_telefono: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" placeholder="Tel *" />
-                                <input type="text" required value={formIngreso.cliente_telefono_alt} onChange={e => setFormIngreso({...formIngreso, cliente_telefono_alt: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" placeholder="Tel Alt *" />
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="bg-amber-950/20 border border-amber-900/40 rounded-lg p-3 space-y-2 fade-in">
-                              <select value={gremioSeleccionado} onChange={e => setGremioSeleccionado(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold">
-                                {safeArray(listaGremios).map((g, idx) => <option key={idx} value={g}>{g}</option>)}
-                                <option value="NUEVO">+ Nuevo Gremio...</option>
-                              </select>
-                              {gremioSeleccionado === 'NUEVO' && <input type="text" required placeholder="Nombre..." value={nuevoGremioNombre} onChange={e => setNuevoGremioNombre(e.target.value)} className="w-full bg-slate-950 border border-amber-500 rounded-lg px-3 py-2 text-white" />}
-                            </div>
-                          )}
-                          <div className="grid grid-cols-2 gap-2">
-                            <input type="text" required value={formIngreso.equipo_modelo} onChange={e => setFormIngreso({...formIngreso, equipo_modelo: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" placeholder="Modelo *" />
-                            <input type="text" value={formIngreso.imei_serie} onChange={e => setFormIngreso({...formIngreso, imei_serie: e.target.value})} className={`w-full bg-slate-950 border rounded-lg px-3 py-2 text-white font-mono ${formIngreso.imei_serie && !checkImei.valido ? 'border-rose-500' : 'border-slate-700'}`} placeholder="IMEI" />
-                          </div>
-                          <select value={formIngreso.prioridad} onChange={e => setFormIngreso({...formIngreso, prioridad: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold">
-                            <option value="Baja">🟢 Baja</option><option value="Moderada">🟡 Moderada</option><option value="Alta">🔴 Alta</option>
-                          </select>
-                          <textarea rows="2" value={formIngreso.estado_fisico} onChange={e => setFormIngreso({...formIngreso, estado_fisico: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" placeholder="Estado físico..." />
-                          <textarea rows="2" required value={formIngreso.falla_declarada} onChange={e => setFormIngreso({...formIngreso, falla_declarada: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" placeholder="Falla declarada *" />
-                          <div className="flex gap-2">
-                            <input type="number" step="any" value={formIngreso.presupuesto_estimado} onChange={e => setFormIngreso({...formIngreso, presupuesto_estimado: e.target.value})} className="w-2/3 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono" placeholder="Presupuesto" />
-                            <select value={formIngreso.moneda_presupuesto} onChange={e => setFormIngreso({...formIngreso, moneda_presupuesto: e.target.value})} className="w-1/3 bg-slate-950 border border-slate-700 rounded-lg px-1 py-2 text-white font-bold"><option value="ARS">ARS</option><option value="USD">USD</option></select>
-                          </div>
-                          <PreviewBimonetario monto={formIngreso.presupuesto_estimado} moneda={formIngreso.moneda_presupuesto} cotizacion={cotizacionDolar} />
-                          <button type="submit" className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-lg mt-2 transition-all">INGRESAR A TALLER</button>
-                        </form>
+              {/* LISTADO */}
+              <div className="space-y-4">
+                <h3 className="font-bold text-lg text-white">Equipos Activos ({cloudData.ordenes.filter(o => o.estado !== 'Entregado').length})</h3>
+                {cloudData.ordenes.filter(o => o.estado !== 'Entregado').length === 0 ? (
+                  <div className="text-slate-500 bg-slate-900 p-6 rounded-xl text-center border border-slate-800">Taller vacío. Probá ingresando un equipo.</div>
+                ) : (
+                  cloudData.ordenes.filter(o => o.estado !== 'Entregado').map(ord => (
+                    <div key={ord.id} className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-2 shadow">
+                      <div className="flex justify-between items-center">
+                        <span className="font-mono text-[10px] text-purple-400">ID: {ord.id}</span>
+                        <select 
+                          value={ord.estado} 
+                          onChange={(e) => cambiarEstadoOrden(ord.id, e.target.value)}
+                          className="bg-slate-950 px-2 py-1 rounded text-white font-bold text-[10px]"
+                        >
+                          <option value="Recibido">Recibido</option>
+                          <option value="En Diagnóstico">En Diagnóstico</option>
+                          <option value="Listo para Entregar">Listo</option>
+                          <option value="Entregado">Entregado</option>
+                        </select>
                       </div>
-
-                      <div className="lg:col-span-8 space-y-4">
-                        <div className="flex gap-3"><input type="text" placeholder="Buscar modelo o cliente..." value={busquedaTaller} onChange={(e) => setBusquedaTaller(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" /></div>
-                        {equiposActivos.length === 0 ? (
-                          <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-500"><p className="font-bold">No hay equipos en taller</p></div>
-                        ) : (
-                          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                            {equiposActivos.map(ord => {
-                              const dias = Math.floor((new Date() - new Date(ord.fecha_ingreso)) / 86400000);
-                              return (
-                                <div key={ord.id} className={`bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2 ${dias >= 3 ? 'border-rose-600/50 bg-rose-950/10' : ''}`}>
-                                  {dias >= 3 && <span className="text-[9px] font-bold text-rose-400 uppercase">⚠️ Demora: {dias} días</span>}
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <span className="text-[9px] font-mono text-purple-400 font-bold">#ORD-{String(ord.id).slice(-4)}</span>
-                                      <h4 className="font-bold text-white text-sm mt-0.5">{ord.equipo_modelo}</h4>
-                                      <p className="text-[10px] text-slate-400">{ord.cliente_nombre}</p>
-                                    </div>
-                                    <select value={ord.estado} onChange={e => setOrdenes(safeArray(ordenes).map(o => o.id === ord.id ? { ...o, estado: e.target.value } : o))} className="bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-[10px] font-bold text-white">
-                                      <option value="Recibido">Recibido</option><option value="En Diagnóstico">En Diagnóstico</option><option value="Esperando Repuesto">Esp. Repuesto</option><option value="Listo para Entregar">Listo</option>
-                                    </select>
-                                  </div>
-                                  <div className="bg-slate-950 rounded p-2 text-[10px] text-slate-400"><p><strong>Falla:</strong> {ord.falla_declarada}</p></div>
-                                  <div className="flex justify-end gap-2 pt-1">
-                                    <button onClick={() => setReciboModal(ord)} className="bg-slate-800 text-white font-bold px-2 py-1 rounded text-[10px]">PDF</button>
-                                    <button onClick={() => { setEquipoSeleccionadoParaReparar(ord); setModalCargarReparacion(true); }} className="bg-purple-600 text-white font-bold px-2 py-1 rounded text-[10px]">Finalizar</button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
+                      <h4 className="font-bold text-white text-base">{ord.modelo}</h4>
+                      <p className="text-slate-400">Cliente: {ord.cliente}</p>
+                      <p className="bg-slate-950 p-2 rounded text-slate-300">Falla: {ord.falla}</p>
                     </div>
-                  </div>
-                );
-              })()}
-
-              {/* ==================== 3. REPARACIONES ==================== */}
-              {vista === 'reparaciones' && (() => {
-                const repFiltradas = safeArray(reparaciones).filter(r => {
-                  const q = safeString(busquedaReparaciones);
-                  return !q || safeString(r.equipo_modelo).includes(q) || safeString(r.cliente_nombre).includes(q);
-                });
-                return (
-                  <div className="space-y-4 max-w-7xl mx-auto fade-in">
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-xl font-bold text-white">Registro de Reparaciones</h2>
-                      <button onClick={() => setModalCargarReparacion(true)} className="bg-purple-600 text-white font-bold px-3 py-1.5 rounded-lg text-xs"><i className="fa-solid fa-plus mr-1"></i> Cargar</button>
-                    </div>
-                    <input type="text" placeholder="Buscar equipo..." value={busquedaReparaciones} onChange={(e) => setBusquedaReparaciones(e.target.value)} className="w-64 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white" />
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-x-auto">
-                      <table className="w-full text-left text-xs text-slate-300">
-                        <thead className="bg-slate-950 text-slate-400 font-bold border-b border-slate-800">
-                          <tr><th className="px-3 py-2">Equipo / Cliente</th><th className="px-3 py-2">M. Obra</th><th className="px-3 py-2 text-right">Total Cobrado</th><th className="px-3 py-2 text-center">Estado</th><th className="px-3 py-2 text-center">Acción</th></tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/50">
-                          {repFiltradas.length === 0 ? <tr><td colSpan="5" className="text-center py-6 text-slate-500">Sin registros.</td></tr> : repFiltradas.map(r => (
-                            <tr key={r.id} className="hover:bg-slate-800/30">
-                              <td className="px-3 py-2"><div className="font-bold text-white text-sm">{r.equipo_modelo}</div><div className="text-[10px] text-slate-400">{r.cliente_nombre}</div></td>
-                              <td className="px-3 py-2 font-mono text-emerald-400">{fmtMoney(r.mano_obra_usd)}</td>
-                              <td className="px-3 py-2 font-mono font-bold text-white text-right">{fmtMoney(r.total_usd)}</td>
-                              <td className="px-3 py-2 text-center"><span className={`px-2 py-0.5 rounded font-bold text-[9px] uppercase ${r.estado_pago === 'Pagado' ? 'bg-emerald-950/50 text-emerald-400' : 'bg-amber-950/50 text-amber-400'}`}>{r.estado_pago}</span></td>
-                              <td className="px-3 py-2 text-center">
-                                {r.estado_pago === 'Pendiente' ? <button onClick={() => marcarPagadoReparacion(r.id)} className="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold">Cobrar</button> : <span className="text-emerald-600"><i className="fa-solid fa-check"></i></span>}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* ==================== 4. GARANTÍAS ==================== */}
-              {vista === 'garantias' && (() => {
-                const equipos = safeArray(reparaciones).filter(r => r.estado_pago === 'Pagado').filter(r => {
-                  const q = safeString(busquedaGarantias); return !q || safeString(r.imei_serie).includes(q) || safeString(r.equipo_modelo).includes(q);
-                });
-                return (
-                  <div className="space-y-6 max-w-7xl mx-auto fade-in">
-                    <header className="flex justify-between items-center">
-                      <h2 className="text-xl font-bold text-white">Control de Garantías</h2>
-                      <input type="text" placeholder="Buscar IMEI o modelo..." value={busquedaGarantias} onChange={(e) => setBusquedaGarantias(e.target.value)} className="w-64 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white" />
-                    </header>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {equipos.length === 0 ? <div className="col-span-full bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-500">Sin garantías.</div> : equipos.map(r => {
-                        const f = r.fecha_pago || r.fecha_completado; if (!f) return null;
-                        const res = Math.max(0, (r.garantia_dias || 0) - Math.floor((new Date() - new Date(f)) / 86400000));
-                        return (
-                          <div key={r.id} className={`bg-slate-900 border-2 rounded-xl p-4 transition-all ${res > 0 ? 'border-emerald-900/50' : 'border-rose-900/30'}`}>
-                            <div className="space-y-1 mb-3">
-                              <span className="text-[9px] text-purple-300 font-mono font-bold bg-slate-950 px-2 py-0.5 rounded">IMEI: {r.imei_serie || 'N/A'}</span>
-                              <h4 className="font-bold text-white mt-1">{r.equipo_modelo}</h4>
-                              <p className="text-[10px] text-slate-400">Cliente: {r.cliente_nombre}</p>
-                            </div>
-                            <div className="border-t border-slate-800 pt-2 flex justify-between items-center">
-                              <span className="text-[10px] text-slate-500">{new Date(f).toLocaleDateString()}</span>
-                              <span className={`px-2 py-1 rounded text-[9px] font-bold ${res > 0 ? 'bg-emerald-950 text-emerald-400' : 'bg-rose-950 text-rose-500'}`}>{res > 0 ? `${res} Días Restantes` : 'Vencida'}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* ==================== 5. STOCK ==================== */}
-              {vista === 'stock' && (() => {
-                const stockFiltrado = safeArray(stockRepuestos).filter(s => { const q = safeString(busquedaStock); return !q || safeString(s.modelo).includes(q); });
-                return (
-                  <div className="space-y-4 max-w-6xl mx-auto fade-in">
-                    <h2 className="text-xl font-bold text-white">Stock & Repuestos (Capital: {fmtMoney(totalValorStock)})</h2>
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const c = congelarMonto(formNuevoStock.costo, formNuevoStock.moneda);
-                        const nuevo = { id: Date.now(), categoria: formNuevoStock.categoria, modelo: formNuevoStock.modelo, cantidad: parseInt(formNuevoStock.cantidad) || 0, costo_unitario_usd: c.monto_usd, moneda_original: c.moneda_original, monto_original: c.monto_original, cotizacion_historica: c.cotizacion_historica };
-                        setStockRepuestos([nuevo, ...safeArray(stockRepuestos)]);
-                        setFormNuevoStock({ categoria: 'Batería', modelo: '', cantidad: '', costo: '', moneda: 'USD' });
-                      }} className="flex gap-2">
-                        <select value={formNuevoStock.categoria} onChange={e => setFormNuevoStock({...formNuevoStock, categoria: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-2 text-white"><option value="Batería">Batería</option><option value="Pantalla / Módulo">Pantalla</option><option value="Insumo">Insumo</option></select>
-                        <input type="text" required placeholder="Modelo" value={formNuevoStock.modelo} onChange={e => setFormNuevoStock({...formNuevoStock, modelo: e.target.value})} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" />
-                        <input type="number" required placeholder="Cant" value={formNuevoStock.cantidad} onChange={e => setFormNuevoStock({...formNuevoStock, cantidad: e.target.value})} className="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" />
-                        <input type="number" step="any" required placeholder="Costo" value={formNuevoStock.costo} onChange={e => setFormNuevoStock({...formNuevoStock, costo: e.target.value})} className="w-20 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" />
-                        <select value={formNuevoStock.moneda} onChange={e => setFormNuevoStock({...formNuevoStock, moneda: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-1 text-white"><option value="USD">USD</option><option value="ARS">ARS</option></select>
-                        <button type="submit" className="bg-purple-600 text-white font-bold rounded-lg px-3">Guardar</button>
-                      </form>
-                      <PreviewBimonetario monto={formNuevoStock.costo} moneda={formNuevoStock.moneda} cotizacion={cotizacionDolar} />
-                    </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-x-auto">
-                      <input type="text" placeholder="Buscar..." value={busquedaStock} onChange={(e) => setBusquedaStock(e.target.value)} className="w-64 bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-white mb-3" />
-                      <table className="w-full text-left text-xs text-slate-300">
-                        <thead className="bg-slate-950 text-slate-400 font-bold border-b border-slate-800">
-                          <tr><th className="px-3 py-2">Modelo</th><th className="px-3 py-2 text-center">Cant.</th><th className="px-3 py-2 text-right">Costo USD</th><th className="px-3 py-2 text-center">Acción</th></tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/50">
-                          {stockFiltrado.map(s => (
-                            <tr key={s.id} className="hover:bg-slate-800/30">
-                              <td className="px-3 py-2 font-bold text-white">{s.modelo} <span className="text-[9px] text-slate-500 font-mono ml-1">{fmtHistorico(s)}</span></td>
-                              <td className="px-3 py-2 text-center">{s.cantidad}</td>
-                              <td className="px-3 py-2 font-mono text-slate-400 text-right">{fmtMoney(s.costo_unitario_usd)}</td>
-                              <td className="px-3 py-2 flex gap-1 justify-center">
-                                <button onClick={() => setModalEditStock({ ...s, costoInput: s.costo_unitario_usd, monedaInput: 'USD' })} className="bg-slate-800 text-purple-400 px-2 py-1 rounded"><i className="fa-solid fa-pen text-[10px]"></i></button>
-                                <button onClick={() => setStockRepuestos(safeArray(stockRepuestos).filter(x => x.id !== s.id))} className="bg-slate-800 text-rose-400 px-2 py-1 rounded"><i className="fa-solid fa-trash text-[10px]"></i></button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* ==================== 6. GASTOS ==================== */}
-              {vista === 'gastos' && (() => {
-                const gastosFiltrados = safeArray(gastosNegocio).filter(g => { const q = safeString(busquedaGastos); return !q || safeString(g.concepto).includes(q); });
-                return (
-                  <div className="space-y-4 max-w-5xl mx-auto fade-in">
-                    <header><h2 className="text-xl font-bold text-white tracking-tight">Gastos Operativos</h2></header>
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const c = congelarMonto(formGastoNegocio.monto, formGastoNegocio.moneda);
-                        setGastosNegocio([{ id: Date.now(), concepto: formGastoNegocio.concepto, categoria: formGastoNegocio.categoria, estado: 'Pagado', monto_usd: c.monto_usd, moneda_original: c.moneda_original, monto_original: c.monto_original, cotizacion_historica: c.cotizacion_historica, fecha: new Date().toISOString() }, ...safeArray(gastosNegocio)]);
-                        setFormGastoNegocio({ concepto: '', proveedor: '', monto: '', moneda: 'ARS', categoria: 'Cadetería', medio_pago: 'Efectivo ARS', estado: 'Pagado' });
-                      }} className="flex gap-2 text-xs">
-                        <input type="text" required placeholder="Concepto (Ej: Flete)" value={formGastoNegocio.concepto} onChange={e => setFormGastoNegocio({...formGastoNegocio, concepto: e.target.value})} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" />
-                        <input type="number" step="any" required placeholder="Monto" value={formGastoNegocio.monto} onChange={e => setFormGastoNegocio({...formGastoNegocio, monto: e.target.value})} className="w-24 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-mono" />
-                        <select value={formGastoNegocio.moneda} onChange={e => setFormGastoNegocio({...formGastoNegocio, moneda: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-1 text-white"><option value="USD">USD</option><option value="ARS">ARS</option></select>
-                        <select value={formGastoNegocio.categoria} onChange={e => setFormGastoNegocio({...formGastoNegocio, categoria: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white">{CATEGORIAS_GASTOS_NEGOCIO.map(c => <option key={c} value={c}>{c}</option>)}</select>
-                        <button type="submit" className="bg-rose-600 text-white font-bold px-3 py-1.5 rounded-lg">Cargar</button>
-                      </form>
-                      <PreviewBimonetario monto={formGastoNegocio.monto} moneda={formGastoNegocio.moneda} cotizacion={cotizacionDolar} />
-                    </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
-                      {gastosFiltrados.map(g => (
-                        <div key={g.id} className="bg-slate-950 border border-slate-800 rounded-lg p-3 flex justify-between items-center text-xs">
-                          <div><p className="font-bold text-white">{g.concepto}</p><p className="text-[9px] text-slate-500 mt-0.5">{g.categoria} • {fmtHistorico(g)}</p></div>
-                          <span className="font-mono text-rose-400 font-bold">-{fmtMoney(g.monto_usd)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* ==================== 7. ME DEBEN ==================== */}
-              {vista === 'medeben' && (() => {
-                const deudasFiltradas = safeArray(deudasFavor).filter(d => { const q = safeString(busquedaDeudas); return !q || safeString(d.deudor).includes(q); });
-                return (
-                  <div className="space-y-5 max-w-5xl mx-auto fade-in">
-                    <header><h2 className="text-xl font-bold text-white tracking-tight">Cuentas a Favor</h2></header>
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const c = congelarMonto(formDeudaFavor.monto, formDeudaFavor.moneda);
-                        const nueva = { id: Date.now(), deudor: formDeudaFavor.deudor, motivo: formDeudaFavor.motivo || 'Reparación', monto_usd: c.monto_usd, moneda_original: c.moneda_original, monto_original: c.monto_original, cotizacion_historica: c.cotizacion_historica, estado: 'Pendiente', fecha: new Date().toISOString() };
-                        setDeudasFavor([nueva, ...safeArray(deudasFavor)]);
-                        setFormDeudaFavor({ deudor: '', motivo: '', telefono: '', monto: '', moneda: 'ARS' });
-                      }} className="flex gap-2 text-xs">
-                        <input type="text" required placeholder="Nombre..." value={formDeudaFavor.deudor} onChange={e => setFormDeudaFavor({...formDeudaFavor, deudor: e.target.value})} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" />
-                        <input type="number" step="any" required placeholder="Monto" value={formDeudaFavor.monto} onChange={e => setFormDeudaFavor({...formDeudaFavor, monto: e.target.value})} className="w-24 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" />
-                        <select value={formDeudaFavor.moneda} onChange={e => setFormDeudaFavor({...formDeudaFavor, moneda: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-1 text-white"><option value="USD">USD</option><option value="ARS">ARS</option></select>
-                        <button type="submit" className="bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg">Agregar</button>
-                      </form>
-                      <PreviewBimonetario monto={formDeudaFavor.monto} moneda={formDeudaFavor.moneda} cotizacion={cotizacionDolar} />
-                    </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {deudasFiltradas.map(d => (
-                        <div key={d.id} className="bg-slate-950 border border-slate-700 rounded-lg p-3 flex justify-between items-center">
-                          <div>
-                            <p className={`font-bold text-sm ${d.estado === 'Pendiente' ? 'text-white' : 'text-slate-500 line-through'}`}>{d.deudor}</p>
-                            <p className="text-[9px] text-slate-400">{fmtHistorico(d)}</p>
-                          </div>
-                          <div className="flex flex-col items-end gap-1.5">
-                            <span className={`font-mono font-bold ${d.estado === 'Pendiente' ? 'text-emerald-400' : 'text-slate-500'}`}>{fmtMoney(d.monto_usd)}</span>
-                            {d.estado === 'Pendiente' && (
-                              <div className="flex gap-1.5">
-                                <button onClick={() => { setModalPagoParcialDeuda(d); setFormAbonoDeuda({ monto: '', moneda: 'ARS' }); }} className="bg-amber-600/20 text-amber-400 px-2 py-1 rounded text-[9px] font-bold border border-amber-900">Parcial</button>
-                                <button onClick={() => setDeudasFavor(safeArray(deudasFavor).map(x => x.id === d.id ? { ...x, estado: 'Cobrado' } : x))} className="bg-emerald-600/20 text-emerald-400 px-2 py-1 rounded text-[9px] font-bold border border-emerald-900">Saldar</button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* ==================== 8. COMISIONES ==================== */}
-              {vista === 'comisiones' && (() => {
-                const leDebeABruno = comisionesCalculadas.saldoDeudaNegocioConBruno > 0.01;
-                return (
-                  <div className="space-y-5 max-w-4xl mx-auto fade-in">
-                    <header><h2 className="text-xl font-bold text-white tracking-tight">Cuenta Corriente: Bruno</h2></header>
-                    <div className={`border rounded-xl p-5 flex flex-col md:flex-row justify-between items-center gap-5 ${leDebeABruno ? 'bg-rose-950/20 border-rose-600/50' : 'bg-emerald-950/20 border-emerald-600/50'}`}>
-                      <div>
-                        <span className={`px-2 py-1 rounded text-[9px] font-bold uppercase ${leDebeABruno ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}`}>
-                          {leDebeABruno ? 'Deuda con Bruno' : 'Al día'}
-                        </span>
-                        <h3 className={`text-3xl font-black mt-2 ${leDebeABruno ? 'text-rose-400' : 'text-emerald-400'}`}>{fmtMoney(Math.abs(comisionesCalculadas.saldoDeudaNegocioConBruno))}</h3>
-                      </div>
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const c = congelarMonto(formPagoComision.monto, formPagoComision.moneda);
-                        if (c.monto_usd <= 0) return;
-                        setComisionesPagos([{ id: Date.now(), monto_usd: c.monto_usd, moneda_original: c.moneda_original, monto_original: c.monto_original, cotizacion_historica: c.cotizacion_historica, nota: formPagoComision.nota || 'Pago', fecha: new Date().toISOString() }, ...safeArray(comisionesPagos)]);
-                        setFormPagoComision({ monto: '', moneda: 'ARS', medio_pago: 'Efectivo ARS', nota: '' });
-                      }} className="bg-slate-900 border border-slate-700 rounded-lg p-3 w-full md:w-72 space-y-2">
-                        <div className="flex gap-1.5">
-                          <input type="number" step="any" required placeholder="Pagar..." value={formPagoComision.monto} onChange={e => setFormPagoComision({...formPagoComision, monto: e.target.value})} className="w-2/3 bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-white font-mono" />
-                          <select value={formPagoComision.moneda} onChange={e => setFormPagoComision({...formPagoComision, moneda: e.target.value})} className="w-1/3 bg-slate-950 border border-slate-700 rounded px-1 py-1.5 text-white"><option value="USD">USD</option><option value="ARS">ARS</option></select>
-                        </div>
-                        <PreviewBimonetario monto={formPagoComision.monto} moneda={formPagoComision.moneda} cotizacion={cotizacionDolar} />
-                        <button type="submit" className="w-full bg-purple-600 text-white font-bold py-1.5 rounded">PAGAR</button>
-                      </form>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* ==================== 9, 10, 11, 12, 14: RESTO DE VISTAS ESTÁNDAR ==================== */}
-              {vista === 'socios' && (
-                <div className="space-y-5 max-w-4xl mx-auto fade-in">
-                  <header><h2 className="text-xl font-bold text-white">Socios y Reparto</h2></header>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-                      <h3 className="text-lg font-black text-white">Bruno</h3><p className="text-[10px] text-purple-400 font-bold mb-3">Técnico Principal</p>
-                      <div className="space-y-2 text-xs"><div className="flex justify-between bg-slate-950 p-2 rounded"><span>Gremio</span><span className="font-bold text-amber-400">100%</span></div><div className="flex justify-between bg-slate-950 p-2 rounded"><span>Minorista</span><span className="font-bold text-purple-400">50%</span></div></div>
-                    </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-                      <h3 className="text-lg font-black text-white">Mateo</h3><p className="text-[10px] text-blue-400 font-bold mb-3">Socio Comercial</p>
-                      <div className="space-y-2 text-xs"><div className="flex justify-between bg-slate-950 p-2 rounded opacity-50"><span>Gremio</span><span className="font-bold text-slate-500">0%</span></div><div className="flex justify-between bg-slate-950 p-2 rounded"><span>Minorista</span><span className="font-bold text-blue-400">50%</span></div></div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {vista === 'estadisticas' && (() => {
-                const totalRep = reparaciones.length;
-                const min = safeArray(reparaciones).filter(r => r.tipo_cliente === 'minorista').length;
-                const gre = safeArray(reparaciones).filter(r => r.tipo_cliente === 'gremio').length;
-                const minPct = totalRep ? Math.round((min/totalRep)*100) : 0;
-                const grePct = totalRep ? Math.round((gre/totalRep)*100) : 0;
-                return (
-                  <div className="space-y-5 max-w-4xl mx-auto fade-in">
-                    <header><h2 className="text-xl font-bold text-white">Analíticas</h2></header>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-                        <h3 className="font-bold text-white mb-3">Origen Trabajos</h3>
-                        <div className="space-y-2">
-                          <div><div className="flex justify-between text-[10px] font-bold"><span className="text-blue-400">Minorista</span><span>{minPct}%</span></div><div className="w-full bg-slate-950 h-2 rounded"><div className="bg-blue-500 h-full" style={{width:`${minPct}%`}}></div></div></div>
-                          <div><div className="flex justify-between text-[10px] font-bold"><span className="text-amber-400">Gremio</span><span>{grePct}%</span></div><div className="w-full bg-slate-950 h-2 rounded"><div className="bg-amber-500 h-full" style={{width:`${grePct}%`}}></div></div></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {vista === 'actividad' && (
-                <div className="space-y-5 max-w-6xl mx-auto fade-in">
-                  <header><h2 className="text-xl font-bold text-white">Auditoría (Logs)</h2></header>
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-x-auto">
-                    <table className="w-full text-left text-xs text-slate-300">
-                      <thead className="bg-slate-950 uppercase font-bold border-b border-slate-800">
-                        <tr><th className="px-3 py-2">Fecha</th><th className="px-3 py-2">Usuario</th><th className="px-3 py-2">Módulo</th><th className="px-3 py-2">Detalle</th></tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {safeArray(logs).slice(0,100).map(l => (
-                          <tr key={l.id} className="hover:bg-slate-950/50"><td className="px-3 py-2 font-mono text-slate-500">{new Date(l.fecha).toLocaleString()}</td><td className="px-3 py-2 font-bold text-purple-400">{l.usuario}</td><td className="px-3 py-2 font-bold">{l.modulo}</td><td className="px-3 py-2">{l.detalles}</td></tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {vista === 'cuentas' && (
-                <div className="space-y-5 max-w-4xl mx-auto fade-in">
-                  <header><h2 className="text-xl font-bold text-white">Gestión de Cuentas</h2></header>
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm max-w-sm">
-                    <h3 className="font-bold text-white mb-4">Cambiar Contraseña</h3>
-                    <form onSubmit={cambiarPasswordUsuario} className="space-y-3">
-                      <input type="password" required placeholder="Clave actual" value={passActual} onChange={e => setPassActual(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" />
-                      <input type="password" required placeholder="Nueva clave" value={passNueva} onChange={e => setPassNueva(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" />
-                      {msgPass && <p className="font-bold text-emerald-400 text-[10px]">{msgPass}</p>}
-                      <button type="submit" className="w-full bg-slate-800 text-white font-bold py-2 rounded-lg mt-1">Actualizar</button>
-                    </form>
-                  </div>
-                </div>
-              )}
-
-              {vista === 'config' && (
-                <div className="space-y-5 max-w-4xl mx-auto fade-in">
-                  <header><h2 className="text-xl font-bold text-white">Configuración y Backup</h2></header>
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 max-w-md space-y-4">
-                    <h3 className="font-bold text-white">Restaurar Backup JSON</h3>
-                    <p className="text-[10px] text-slate-400">Si tenés un archivo de respaldo, podés subirlo acá:</p>
-                    <input type="file" accept=".json" onChange={importarBackupJson} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-300" />
-                  </div>
-                </div>
-              )}
-
-              {/* ==================== 13. PATRIMONIO DE BRUNO (SÚPER PROTEGIDO Y COMPACTO) ==================== */}
-              {vista === 'patrimonio' && (() => {
-                const totalGastosPersonalesUSD = safeArray(gastosPersonales).reduce((acc, g) => acc + (g.monto_usd || 0), 0);
-                const liquidoDisponibleBruno = saldoInicialBruno + comisionesCalculadas.totalHistoricoGanadoBruno - totalGastosPersonalesUSD - totalGastosFijosMensuales;
-                const patrimonioTotalConStock = liquidoDisponibleBruno + totalValorStock;
-
-                return (
-                  <div className="space-y-5 max-w-5xl mx-auto fade-in">
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-xl font-bold text-white">Patrimonio Personal 🔒</h2>
-                      {patrimonioDesbloqueado && <button onClick={() => { setPatrimonioDesbloqueado(false); setPinInput(''); setPinErrorMsg(''); }} className="bg-rose-600 text-white font-bold px-3 py-1.5 rounded-lg text-[10px]">Bloquear</button>}
-                    </div>
-
-                    {!patrimonioDesbloqueado ? (
-                      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-xs mx-auto text-center space-y-3 shadow-xl mt-10">
-                        <div className="w-12 h-12 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center text-slate-500 text-lg mx-auto"><i className="fa-solid fa-lock"></i></div>
-                        <form onSubmit={(e) => {
-                          e.preventDefault();
-                          // SOLO DICE INCORRECTO. NUNCA REVELA EL PIN.
-                          if (pinInput.trim() === pinPatrimonio) { setPatrimonioDesbloqueado(true); setPinInput(''); setPinErrorMsg(''); } 
-                          else { setPinErrorMsg('❌ PIN incorrecto.'); setPinInput(''); }
-                        }} className="space-y-2">
-                          <input type="password" maxLength="6" value={pinInput} onChange={e => { setPinInput(e.target.value); setPinErrorMsg(''); if (e.target.value === pinPatrimonio) { setPatrimonioDesbloqueado(true); setPinInput(''); } }} placeholder="••••••" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-3 text-center text-2xl font-mono text-white tracking-widest focus:outline-none" />
-                          {pinErrorMsg && <p className="text-[10px] font-bold text-rose-400">{pinErrorMsg}</p>}
-                          <button type="submit" className="w-full bg-slate-800 text-white font-bold py-2 rounded-lg text-xs mt-1">Ingresar</button>
-                        </form>
-                      </div>
-                    ) : (
-                      <div className="space-y-5 fade-in">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3"><p className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Banco / Caja</p><h3 className="text-xl font-black text-white">{fmtMoney(saldoInicialBruno)}</h3><button onClick={() => setModalEditarSaldoBruno(true)} className="text-[10px] text-purple-400 mt-1"><i className="fa-solid fa-pen"></i> Editar</button></div>
-                          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3"><p className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Comisiones Históricas</p><h3 className="text-xl font-black text-emerald-400">{fmtMoney(comisionesCalculadas.totalHistoricoGanadoBruno)}</h3></div>
-                          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3"><p className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Stock Físico</p><h3 className="text-xl font-black text-purple-400">{fmtMoney(totalValorStock)}</h3></div>
-                          <div className="bg-slate-900 border border-emerald-500/40 rounded-xl p-3"><p className="text-[9px] text-emerald-400 font-bold uppercase mb-0.5">Patrimonio Total</p><h3 className="text-xl font-black text-emerald-400">{fmtMoney(patrimonioTotalConStock)}</h3></div>
-                        </div>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
-                            <h3 className="font-bold text-white text-sm">Gasto Diario (ARS o USD)</h3>
-                            <form onSubmit={(e) => {
-                              e.preventDefault();
-                              const c = congelarMonto(formGastoPersonal.monto, formGastoPersonal.moneda);
-                              const nuevo = { id: Date.now(), desc: formGastoPersonal.desc, categoria: formGastoPersonal.categoria, monto_usd: c.monto_usd, moneda_original: c.moneda_original, monto_original: c.monto_original, cotizacion_historica: c.cotizacion_historica, fecha: new Date().toISOString() };
-                              setGastosPersonales([nuevo, ...safeArray(gastosPersonales)]);
-                              setFormGastoPersonal({ ...formGastoPersonal, desc: '', monto: '' });
-                            }} className="space-y-2 text-xs">
-                              <div className="grid grid-cols-2 gap-2">
-                                <input type="text" required placeholder="Ej: Uber..." value={formGastoPersonal.desc} onChange={e => setFormGastoPersonal({...formGastoPersonal, desc: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" />
-                                <select value={formGastoPersonal.categoria} onChange={e => setFormGastoPersonal({...formGastoPersonal, categoria: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white">{CATEGORIAS_GASTOS_PERSONALES.map(c => <option key={c} value={c}>{c}</option>)}</select>
-                              </div>
-                              <div className="flex gap-2">
-                                <input type="number" step="any" required placeholder="Monto" value={formGastoPersonal.monto} onChange={e => setFormGastoPersonal({...formGastoPersonal, monto: e.target.value})} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-mono" />
-                                <select value={formGastoPersonal.moneda} onChange={e => setFormGastoPersonal({...formGastoPersonal, moneda: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-1 text-white font-bold"><option value="ARS">ARS</option><option value="USD">USD</option></select>
-                                <button type="submit" className="bg-purple-600 text-white font-bold px-3 py-1.5 rounded-lg">Cargar</button>
-                              </div>
-                              <PreviewBimonetario monto={formGastoPersonal.monto} moneda={formGastoPersonal.moneda} cotizacion={cotizacionDolar} />
-                            </form>
-                            <div className="space-y-1.5 max-h-48 overflow-y-auto text-xs pt-2 border-t border-slate-800">
-                              {safeArray(gastosPersonales).map(g => (
-                                <div key={g.id} className="bg-slate-950 border border-slate-800 rounded-lg p-2.5 flex justify-between items-center"><p className="font-bold text-white">{g.desc} <span className="text-[9px] text-slate-500">({fmtHistorico(g)})</span></p><div className="flex gap-2 items-center"><span className="font-mono text-rose-400 font-bold">-{fmtMoney(g.monto_usd)}</span><button onClick={() => setGastosPersonales(safeArray(gastosPersonales).filter(x => x.id !== g.id))} className="text-slate-500 hover:text-rose-400"><i className="fa-solid fa-trash text-[10px]"></i></button></div></div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
-                            <h3 className="font-bold text-white text-sm">Gastos Fijos y Cuotas</h3>
-                            <form onSubmit={(e) => {
-                              e.preventDefault();
-                              const c = congelarMonto(formGastoFijo.monto, formGastoFijo.moneda);
-                              const nuevo = { id: Date.now(), concepto: formGastoFijo.concepto, tipo: formGastoFijo.tipo, cuotasTotales: formGastoFijo.tipo === 'cuotas' ? parseInt(formGastoFijo.cuotasTotales) || 1 : null, cuotasPagadas: formGastoFijo.tipo === 'cuotas' ? 1 : null, monto_usd: c.monto_usd, moneda_original: c.moneda_original, monto_original: c.monto_original, cotizacion_historica: c.cotizacion_historica };
-                              setGastosFijos([nuevo, ...safeArray(gastosFijos)]);
-                              setFormGastoFijo({ ...formGastoFijo, concepto: '', monto: '' });
-                            }} className="space-y-2 text-xs">
-                              <div className="flex gap-2">
-                                <input type="text" required placeholder="Ej: Creatina..." value={formGastoFijo.concepto} onChange={e => setFormGastoFijo({...formGastoFijo, concepto: e.target.value})} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" />
-                                <select value={formGastoFijo.tipo} onChange={e => setFormGastoFijo({...formGastoFijo, tipo: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-bold"><option value="fijo">Fijo</option><option value="cuotas">Cuotas</option></select>
-                              </div>
-                              <div className="flex gap-2">
-                                <input type="number" step="any" required placeholder="Monto" value={formGastoFijo.monto} onChange={e => setFormGastoFijo({...formGastoFijo, monto: e.target.value})} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-mono" />
-                                <select value={formGastoFijo.moneda} onChange={e => setFormGastoFijo({...formGastoFijo, moneda: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-1 text-white font-bold"><option value="ARS">ARS</option><option value="USD">USD</option></select>
-                                {formGastoFijo.tipo === 'cuotas' && <input type="number" required placeholder="Meses" value={formGastoFijo.cuotasTotales} onChange={e => setFormGastoFijo({...formGastoFijo, cuotasTotales: e.target.value})} className="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-mono" />}
-                                <button type="submit" className="bg-purple-600 text-white font-bold px-3 py-1.5 rounded-lg">Guardar</button>
-                              </div>
-                              <PreviewBimonetario monto={formGastoFijo.monto} moneda={formGastoFijo.moneda} cotizacion={cotizacionDolar} />
-                            </form>
-                            <div className="space-y-1.5 max-h-48 overflow-y-auto pt-2 border-t border-slate-800 text-xs">
-                              {safeArray(gastosFijos).map(gf => (
-                                <div key={gf.id} className="bg-slate-950 border border-slate-800 rounded-lg p-2.5 flex justify-between items-center">
-                                  <div><p className="font-bold text-white">{gf.concepto} {gf.tipo === 'cuotas' && <span className="bg-amber-950 text-amber-300 px-1 py-0.5 rounded text-[8px] ml-1">{gf.cuotasPagadas}/{gf.cuotasTotales}</span>}</p><p className="text-[9px] text-slate-500 font-mono">{fmtHistorico(gf)}</p></div>
-                                  <div className="flex items-center gap-2"><span className="font-mono font-bold text-rose-400">-{fmtMoney(gf.monto_usd)}</span>{gf.tipo==='cuotas'&&gf.cuotasPagadas<gf.cuotasTotales&&<button onClick={()=>setGastosFijos(safeArray(gastosFijos).map(x=>x.id===gf.id?{...x,cuotasPagadas:x.cuotasPagadas+1}:x))} className="bg-emerald-950 text-emerald-300 px-1.5 py-0.5 rounded text-[9px] font-bold">+1</button>}<button onClick={() => setGastosFijos(safeArray(gastosFijos).filter(x => x.id !== gf.id))} className="text-slate-500 hover:text-rose-400"><i className="fa-solid fa-trash text-[10px]"></i></button></div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-wrap justify-between items-center gap-3">
-                          <div><h3 className="font-bold text-white text-sm">Cambiar PIN Secreto</h3></div>
-                          <div className="flex gap-2">
-                            <input type="password" maxLength="6" placeholder="Nuevo PIN" value={nuevoPinInput} onChange={e => setNuevoPinInput(e.target.value)} className="w-32 bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-mono text-center tracking-widest focus:outline-none" />
-                            <button onClick={() => { if (/^\d{6}$/.test(nuevoPinInput)) { setPinPatrimonio(nuevoPinInput); setNuevoPinInput(''); alert('✅ PIN actualizado.'); setPatrimonioDesbloqueado(false); } else { alert('❌ Solo 6 números.'); } }} className="bg-purple-600 text-white font-bold px-3 py-1.5 rounded-lg">Guardar</button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-            </main>
-          </div>
-
-          {/* ==================== MODALES ==================== */}
-          {modalCargarReparacion && (
-            <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-50 fade-in">
-              <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 max-w-lg w-full space-y-4">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-2"><h3 className="font-bold text-white text-sm">Cargar Reparación Realizada</h3><button onClick={() => setModalCargarReparacion(false)} className="text-slate-400 hover:text-white"><i className="fa-solid fa-xmark"></i></button></div>
-                <select onChange={e => setEquipoSeleccionadoParaReparar(safeArray(ordenes).find(o => o.id === parseInt(e.target.value)))} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
-                  <option value="">-- Seleccionar Equipo --</option>
-                  {safeArray(ordenes).filter(o => o.estado !== 'Entregado').map(o => <option key={o.id} value={o.id}>#ORD-{String(o.id).slice(-4)} | {o.equipo_modelo} ({o.cliente_nombre})</option>)}
-                </select>
-                {equipoSeleccionadoParaReparar && (
-                  <div className="space-y-3 pt-1">
-                    <div className="bg-slate-950 p-3 rounded-lg border border-slate-800"><p className="font-bold text-white">{equipoSeleccionadoParaReparar.equipo_modelo}</p><p className="text-[10px] text-slate-400">{equipoSeleccionadoParaReparar.cliente_nombre}</p></div>
-                    
-                    <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-2">
-                      <div className="flex justify-between"><label className="font-bold text-slate-400 text-[10px] uppercase">Repuestos (Descuenta Stock)</label><button type="button" onClick={() => setItemsRepuestosCarga([...itemsRepuestosCarga, { tipo: 'stock', stockId: '', nombreManual: '', costoManual: '', monedaManual: 'ARS' }])} className="text-purple-400 text-[10px]">+ Repuesto</button></div>
-                      {itemsRepuestosCarga.map((item, idx) => (
-                        <div key={idx} className="flex gap-1.5">
-                          <select value={item.tipo} onChange={e => { const c = [...itemsRepuestosCarga]; c[idx].tipo = e.target.value; setItemsRepuestosCarga(c); }} className="bg-slate-900 border border-slate-700 rounded px-1 text-white text-[10px]"><option value="stock">Stock</option><option value="manual">Manual</option></select>
-                          {item.tipo === 'stock' ? (
-                            <select value={item.stockId} onChange={e => { const c = [...itemsRepuestosCarga]; c[idx].stockId = e.target.value; setItemsRepuestosCarga(c); }} className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-white">
-                              <option value="">-- Sin repuesto --</option>{safeArray(stockRepuestos).filter(s => s.cantidad > 0).map(s => <option key={s.id} value={s.id}>{s.modelo} (${s.costo_unitario_usd})</option>)}
-                            </select>
-                          ) : (
-                            <div className="flex-1 flex gap-1"><input type="text" placeholder="Nombre" value={item.nombreManual} onChange={e => { const c = [...itemsRepuestosCarga]; c[idx].nombreManual = e.target.value; setItemsRepuestosCarga(c); }} className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 text-white" /><input type="number" step="any" placeholder="Costo" value={item.costoManual} onChange={e => { const c = [...itemsRepuestosCarga]; c[idx].costoManual = e.target.value; setItemsRepuestosCarga(c); }} className="w-16 bg-slate-900 border border-slate-700 rounded px-1 font-mono text-white" /><select value={item.monedaManual} onChange={e => { const c = [...itemsRepuestosCarga]; c[idx].monedaManual = e.target.value; setItemsRepuestosCarga(c); }} className="bg-slate-900 border border-purple-500 rounded px-1 text-white text-[9px]"><option value="ARS">ARS</option><option value="USD">USD</option></select></div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div><label className="block text-[10px] text-slate-400 font-bold mb-1">Mano Obra</label><div className="flex gap-1"><input type="number" step="any" value={manoObraInput} onChange={e => setManoObraInput(e.target.value)} className="w-2/3 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-mono" /><select value={monedaManoObra} onChange={e => setMonedaManoObra(e.target.value)} className="w-1/3 bg-slate-950 border border-purple-500 rounded-lg px-1 text-white text-[10px]"><option value="ARS">ARS</option><option value="USD">USD</option></select></div><PreviewBimonetario monto={manoObraInput} moneda={monedaManoObra} cotizacion={cotizacionDolar} /></div>
-                      <div><label className="block text-[10px] text-slate-400 font-bold mb-1">Estado</label><select value={estadoPagoInicialCarga} onChange={e => setEstadoPagoInicialCarga(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-bold"><option value="Pendiente">Pendiente</option><option value="Pagado">Pagado</option></select></div>
-                    </div>
-                    <div className="flex gap-2 pt-2"><button onClick={handleConfirmarReparacion} className="flex-1 bg-purple-600 text-white font-bold py-2.5 rounded-lg">Confirmar</button></div>
-                  </div>
+                  ))
                 )}
               </div>
             </div>
-          )}
-
-          {modalEditStock && (
-            <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-50 fade-in">
-              <form onSubmit={(e) => { e.preventDefault(); const c = congelarMonto(modalEditStock.costoInput, modalEditStock.monedaInput); setStockRepuestos(safeArray(stockRepuestos).map(s => s.id === modalEditStock.id ? { ...s, modelo: modalEditStock.modelo, cantidad: parseInt(modalEditStock.cantidad) || 0, costo_unitario_usd: c.monto_usd, moneda_original: c.moneda_original, monto_original: c.monto_original, cotizacion_historica: c.cotizacion_historica } : s)); setModalEditStock(null); }} className="bg-slate-900 border border-slate-700 rounded-xl p-5 max-w-xs w-full space-y-3">
-                <h3 className="font-bold text-white text-sm">Editar Repuesto</h3>
-                <input type="text" required value={modalEditStock.modelo} onChange={e => setModalEditStock({...modalEditStock, modelo: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" />
-                <div className="flex gap-2">
-                  <input type="number" required value={modalEditStock.cantidad} onChange={e => setModalEditStock({...modalEditStock, cantidad: e.target.value})} className="w-1/2 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" />
-                  <div className="w-1/2 flex gap-1"><input type="number" step="any" required value={modalEditStock.costoInput} onChange={e => setModalEditStock({...modalEditStock, costoInput: e.target.value})} className="w-2/3 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white" /><select value={modalEditStock.monedaInput} onChange={e => setModalEditStock({...modalEditStock, monedaInput: e.target.value})} className="w-1/3 bg-slate-950 border border-slate-700 rounded-lg px-1 text-white text-[9px]"><option value="USD">USD</option><option value="ARS">ARS</option></select></div>
-                </div>
-                <div className="flex gap-2"><button type="submit" className="flex-1 bg-purple-600 text-white font-bold py-2 rounded-lg">Guardar</button><button type="button" onClick={() => setModalEditStock(null)} className="bg-slate-800 text-white font-bold px-3 py-2 rounded-lg">Cancelar</button></div>
-              </form>
-            </div>
-          )}
-
-          {modalPagoParcialDeuda && (
-            <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-50 fade-in">
-              <form onSubmit={(e) => { e.preventDefault(); const c = congelarMonto(formAbonoDeuda.monto, formAbonoDeuda.moneda); const n = Math.max(0, (modalPagoParcialDeuda.monto_usd || 0) - c.monto_usd); setDeudasFavor(safeArray(deudasFavor).map(d => d.id === modalPagoParcialDeuda.id ? { ...d, monto_usd: n, estado: n <= 0.05 ? 'Cobrado' : 'Pendiente' } : d)); setModalPagoParcialDeuda(null); }} className="bg-slate-900 border border-slate-700 rounded-xl p-5 max-w-xs w-full space-y-3">
-                <h3 className="font-bold text-white text-sm">Pago Parcial: {modalPagoParcialDeuda.deudor}</h3>
-                <div className="flex gap-1.5"><input type="number" step="any" required placeholder="Monto" value={formAbonoDeuda.monto} onChange={e => setFormAbonoDeuda({...formAbonoDeuda, monto: e.target.value})} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-white" /><select value={formAbonoDeuda.moneda} onChange={e => setFormAbonoDeuda({...formAbonoDeuda, moneda: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-2 text-white"><option value="ARS">ARS</option><option value="USD">USD</option></select></div>
-                <div className="flex gap-2"><button type="submit" className="flex-1 bg-emerald-600 text-white font-bold py-2 rounded-lg">Descontar</button><button type="button" onClick={() => setModalPagoParcialDeuda(null)} className="bg-slate-800 text-white font-bold px-3 py-2 rounded-lg">Cancelar</button></div>
-              </form>
-            </div>
-          )}
-
-          {modalEditarSaldoBruno && (
-            <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-50 fade-in">
-              <form onSubmit={(e) => { e.preventDefault(); const c = congelarMonto(formSaldoBruno.monto, formSaldoBruno.moneda); if (formSaldoBruno.modo === 'establecer') setSaldoInicialBruno(c.monto_usd); else setSaldoInicialBruno(saldoInicialBruno + c.monto_usd); setModalEditarSaldoBruno(false); }} className="bg-slate-900 border border-slate-700 rounded-xl p-5 max-w-xs w-full space-y-3">
-                <h3 className="font-bold text-white text-sm">Editar Banco/Caja</h3>
-                <select value={formSaldoBruno.modo} onChange={e => setFormSaldoBruno({...formSaldoBruno, modo: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-white font-bold"><option value="establecer">Establecer monto fijo</option><option value="sumar">Sumar al saldo actual</option></select>
-                <div className="flex gap-1.5"><input type="number" step="any" required value={formSaldoBruno.monto} onChange={e => setFormSaldoBruno({...formSaldoBruno, monto: e.target.value})} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" /><select value={formSaldoBruno.moneda} onChange={e => setFormSaldoBruno({...formSaldoBruno, moneda: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-2 text-white"><option value="ARS">ARS</option><option value="USD">USD</option></select></div>
-                <div className="flex gap-2"><button type="submit" className="flex-1 bg-purple-600 text-white font-bold py-2 rounded-lg">Guardar</button><button type="button" onClick={() => setModalEditarSaldoBruno(false)} className="bg-slate-800 text-white font-bold px-3 py-2 rounded-lg">Cancelar</button></div>
-              </form>
-            </div>
-          )}
-
-          {modalDolar && (
-            <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-50 fade-in">
-              <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 max-w-xs w-full space-y-4">
-                <h3 className="font-bold text-white text-sm text-center">Actualizar Dólar Hoy</h3>
-                <input type="number" step="any" value={nuevaCotizacionInput} onChange={e => setNuevaCotizacionInput(e.target.value)} placeholder={cotizacionDolar} className="w-full bg-slate-950 border border-emerald-500 rounded-lg px-3 py-2 text-white font-mono text-center font-bold" />
-                <div className="flex gap-2"><button onClick={() => { const v = parseFloat(nuevaCotizacionInput); if (!isNaN(v) && v>0) { setCotizacionDolar(v); setFechaUltimaCotizacion(new Date().toISOString()); setModalDolar(false); setNuevaCotizacionInput(''); } }} className="flex-1 bg-emerald-600 text-white font-bold py-2 rounded-lg">Guardar</button><button onClick={() => setModalDolar(false)} className="bg-slate-800 text-white font-bold px-4 py-2 rounded-lg">Cerrar</button></div>
-              </div>
-            </div>
-          )}
-          
+          </main>
         </div>
       );
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><MainApp /></ErrorBoundary>);
+    ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App /></ErrorBoundary>);
   </script>
 </body>
 </html>

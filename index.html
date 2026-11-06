@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ICONNECTURE - Fase 1 (Base Cloud)</title>
+  <title>ICONNECTURE - Fase 2 (Ciclo Completo)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -11,14 +11,14 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen text-xs">
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen text-xs selection:bg-purple-500/30">
   <div id="root"></div>
 
   <script type="text/babel">
     const { useState, useEffect, Component } = React;
 
     // ==========================================
-    // 1. PROTECCIÓN CONTRA CRASHEOS (Error Boundary)
+    // 1. SISTEMA ANTI-CRASH (Error Boundary)
     // ==========================================
     class ErrorBoundary extends Component {
       constructor(props) { super(props); this.state = { hasError: false, errorInfo: null }; }
@@ -27,10 +27,11 @@
         if (this.state.hasError) {
           return (
             <div className="flex items-center justify-center min-h-screen bg-slate-950 p-6 text-center">
-              <div className="bg-rose-950/30 border border-rose-600 rounded-xl p-8 space-y-4">
-                <h1 className="text-xl font-bold text-white text-rose-500">Error Visual Detectado</h1>
-                <p className="text-slate-300">Tus datos en la nube están a salvo. Recargá la página.</p>
-                <button onClick={() => window.location.reload()} className="bg-rose-600 text-white font-bold py-2 px-6 rounded-lg">Recargar</button>
+              <div className="bg-rose-950/30 border border-rose-600 rounded-xl p-8 space-y-4 shadow-xl">
+                <i className="fa-solid fa-triangle-exclamation text-4xl text-rose-500"></i>
+                <h1 className="text-xl font-bold text-white">Error Visual Protegido</h1>
+                <p className="text-slate-300">Hubo un fallo en la pantalla, pero tus datos en la nube están intactos.</p>
+                <button onClick={() => window.location.reload()} className="bg-rose-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-rose-500">Recargar Sistema</button>
               </div>
             </div>
           );
@@ -40,7 +41,7 @@
     }
 
     // ==========================================
-    // 2. CONFIGURACIÓN EXCLUSIVA DE LA NUBE
+    // 2. CONFIGURACIÓN DE NUBE (TUS CREDENCIALES)
     // ==========================================
     const SUPABASE_URL = "https://cmmkxrkbmdzhjzetbddg.supabase.co";
     const SUPABASE_KEY = "sb_publishable_FcfhbHbgGG9mV8zp75g1yA_MbUi-jn1";
@@ -53,73 +54,124 @@
       { id: '4', nombre: 'Priscila', pass: 'priscila123', rol: 'Contadora' }
     ];
 
+    const safeArray = (arr) => Array.isArray(arr) ? arr : [];
+
     // ==========================================
-    // 3. APLICACIÓN PRINCIPAL (FASE 1)
+    // COMPONENTE: PREVIEW BIMONETARIO
+    // ==========================================
+    function PreviewBimonetario({ monto, moneda, cotizacion }) {
+      const val = parseFloat(monto);
+      if (!val || isNaN(val) || val <= 0) return null;
+      const rate = parseFloat(cotizacion) || 1450;
+      
+      if (moneda === 'ARS') {
+        const usd = val / rate;
+        return <p className="text-[10px] text-emerald-400 font-mono mt-1"><i className="fa-solid fa-lock mr-1"></i>Se congela en: <strong>${usd.toFixed(2)} USD</strong> (Dólar: ${rate})</p>;
+      } else {
+        const ars = val * rate;
+        return <p className="text-[10px] text-purple-300 font-mono mt-1"><i className="fa-solid fa-calculator mr-1"></i>Equivale a: <strong>${ars.toLocaleString('es-AR')} ARS</strong></p>;
+      }
+    }
+
+    // ==========================================
+    // 3. APLICACIÓN PRINCIPAL (FASE 2)
     // ==========================================
     function App() {
       const [isLoaded, setIsLoaded] = useState(false);
-      const [cloudData, setCloudData] = useState({ ordenes: [] }); // Todo el estado de la DB vive acá
+      
+      // EL CEREBRO DEL SISTEMA: Todo el estado vive en este único objeto
+      const [cloudData, setCloudData] = useState({
+        ordenes: [],
+        reparaciones: [],
+        stockRepuestos: [],
+        cotizacionDolar: 1450
+      });
       
       const [usuarioSesion, setUsuarioSesion] = useState(null);
       const [loginUser, setLoginUser] = useState('Bruno');
       const [loginPass, setLoginPass] = useState('');
+      const [vista, setVista] = useState('taller');
 
-      // Formulario de ingreso básico para Fase 1
-      const [form, setForm] = useState({ cliente: '', modelo: '', falla: '' });
+      // ESTADOS DE FORMULARIOS
+      const [formTaller, setFormTaller] = useState({ cliente: '', modelo: '', falla: '', tipo_cliente: 'minorista' });
+      const [formStock, setFormStock] = useState({ categoria: 'Batería', modelo: '', cantidad: '', costo: '', moneda: 'USD' });
+      
+      // MODAL CARGAR REPARACIÓN
+      const [modalRep, setModalRep] = useState(false);
+      const [ordenSelecId, setOrdenSelecId] = useState('');
+      const [repuestoSelecId, setRepuestoSelecId] = useState('');
+      const [manoObraInput, setManoObraInput] = useState('');
+      const [monedaManoObra, setMonedaManoObra] = useState('ARS');
+      const [estadoPago, setEstadoPago] = useState('Pendiente');
 
-      // LECTURA INICIAL DE LA NUBE (Solo lee, nunca sobreescribe)
+      // ESTADOS UI
+      const [editDolar, setEditDolar] = useState(false);
+      const [nuevoDolar, setNuevoDolar] = useState('');
+
+      // ----------------------------------------------------
+      // CONEXIÓN A LA NUBE
+      // ----------------------------------------------------
       useEffect(() => {
         async function fetchNube() {
           try {
             const { data, error } = await supabase.from('iconnecture_data').select('payload').eq('id', 1).single();
             if (error) throw error;
             if (data && data.payload) {
-              setCloudData({ ordenes: Array.isArray(data.payload.ordenes) ? data.payload.ordenes : [] });
+              setCloudData({
+                ordenes: safeArray(data.payload.ordenes),
+                reparaciones: safeArray(data.payload.reparaciones),
+                stockRepuestos: safeArray(data.payload.stockRepuestos),
+                cotizacionDolar: parseFloat(data.payload.cotizacionDolar) || 1450
+              });
             }
           } catch (err) {
             console.error("Error al leer Supabase:", err);
-            alert("No se pudo conectar a la nube. Revisá tu internet.");
           }
           setIsLoaded(true);
         }
         fetchNube();
       }, []);
 
-      // ESCRITURA EXPLÍCITA EN LA NUBE
       const guardarEnNube = async (nuevoPayload) => {
-        // Actualiza la pantalla rápido
-        setCloudData(nuevoPayload);
-        // Guarda en la nube de fondo
+        setCloudData(nuevoPayload); // Actualiza UI instantáneo
         const { error } = await supabase.from('iconnecture_data').update({ payload: nuevoPayload }).eq('id', 1);
-        if (error) {
-          alert("Error crítico al guardar en la nube.");
-          console.error(error);
-        }
+        if (error) { alert("Error al guardar en la nube."); console.error(error); }
+      };
+
+      // ----------------------------------------------------
+      // LÓGICA DE NEGOCIO (BIMONETARIA)
+      // ----------------------------------------------------
+      const congelarMonto = (montoRaw, monedaSeleccionada) => {
+        const val = parseFloat(montoRaw) || 0;
+        const rate = cloudData.cotizacionDolar;
+        const monto_usd = monedaSeleccionada === 'ARS' ? (val / rate) : val;
+        return { monto_usd, monto_original: val, moneda_original: monedaSeleccionada, cotizacion_historica: rate };
+      };
+
+      const fmtMoney = (usdVal) => {
+        return `$ ${parseFloat(usdVal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
       };
 
       const handleLogin = (e) => {
         e.preventDefault();
         const u = USUARIOS.find(x => x.nombre === loginUser && x.pass === loginPass);
-        if (u) setUsuarioSesion(u);
-        else alert('Contraseña incorrecta');
+        if (u) setUsuarioSesion(u); else alert('Contraseña incorrecta');
       };
 
+      // MÓDULO 1: TALLER
       const handleCrearOrden = (e) => {
         e.preventDefault();
         const nuevaOrden = {
           id: Date.now(),
-          cliente: form.cliente,
-          modelo: form.modelo,
-          falla: form.falla,
+          cliente_nombre: formTaller.cliente,
+          equipo_modelo: formTaller.modelo,
+          falla_declarada: formTaller.falla,
+          tipo_cliente: formTaller.tipo_cliente,
           estado: 'Recibido',
-          fecha: new Date().toISOString()
+          fecha_ingreso: new Date().toISOString()
         };
-
-        // Creamos el nuevo paquete de datos y lo mandamos a la función segura
-        const nuevasOrdenes = [nuevaOrden, ...cloudData.ordenes];
-        guardarEnNube({ ...cloudData, ordenes: nuevasOrdenes });
-        
-        setForm({ cliente: '', modelo: '', falla: '' });
+        guardarEnNube({ ...cloudData, ordenes: [nuevaOrden, ...cloudData.ordenes] });
+        setFormTaller({ cliente: '', modelo: '', falla: '', tipo_cliente: 'minorista' });
       };
 
       const cambiarEstadoOrden = (idOrden, nuevoEstado) => {
@@ -127,23 +179,102 @@
         guardarEnNube({ ...cloudData, ordenes: nuevasOrdenes });
       };
 
-      // --- PANTALLAS ---
-      if (!isLoaded) return <div className="text-center p-20 text-xl font-bold">Conectando a la Nube...</div>;
+      // MÓDULO 2: STOCK
+      const handleGuardarStock = (e) => {
+        e.preventDefault();
+        const c = congelarMonto(formStock.costo, formStock.moneda);
+        const nuevoRepuesto = {
+          id: Date.now(),
+          categoria: formStock.categoria,
+          modelo: formStock.modelo,
+          cantidad: parseInt(formStock.cantidad) || 0,
+          costo_unitario_usd: c.monto_usd,
+          moneda_original: c.moneda_original,
+          monto_original: c.monto_original,
+          cotizacion_historica: c.cotizacion_historica
+        };
+        guardarEnNube({ ...cloudData, stockRepuestos: [nuevoRepuesto, ...cloudData.stockRepuestos] });
+        setFormStock({ categoria: 'Batería', modelo: '', cantidad: '', costo: '', moneda: 'USD' });
+      };
+
+      // MÓDULO 3: REPARACIONES
+      const handleConfirmarReparacion = () => {
+        const orden = cloudData.ordenes.find(o => o.id === parseInt(ordenSelecId));
+        if (!orden) return alert("Seleccioná un equipo.");
+
+        let costoRepuestosUSD = 0;
+        let repuestoNombre = 'Ninguno (Mantenimiento)';
+        let nuevoStock = [...cloudData.stockRepuestos];
+
+        // 1. Procesar el Repuesto (Si se seleccionó uno)
+        if (repuestoSelecId) {
+          const rep = nuevoStock.find(s => s.id === parseInt(repuestoSelecId));
+          if (rep) {
+            costoRepuestosUSD = rep.costo_unitario_usd;
+            repuestoNombre = `${rep.categoria} ${rep.modelo}`;
+            // Descontar del stock
+            nuevoStock = nuevoStock.map(s => s.id === rep.id ? { ...s, cantidad: Math.max(0, s.cantidad - 1) } : s);
+          }
+        }
+
+        // 2. Procesar Mano de Obra (Congelando USD si lo puso en ARS)
+        const mo = congelarMonto(manoObraInput, monedaManoObra);
+        const totalUSD = costoRepuestosUSD + mo.monto_usd;
+
+        // 3. Crear Registro de Reparación
+        const nuevaRep = {
+          id: Date.now(),
+          orden_id: orden.id,
+          cliente_nombre: orden.cliente_nombre,
+          equipo_modelo: orden.equipo_modelo,
+          tipo_cliente: orden.tipo_cliente,
+          repuesto_usado: repuestoNombre,
+          costo_repuestos_usd: costoRepuestosUSD,
+          mano_obra_usd: mo.monto_usd,
+          total_usd: totalUSD,
+          moneda_original_mo: mo.moneda_original,
+          cotizacion_historica: mo.cotizacion_historica,
+          estado_pago: estadoPago,
+          fecha_completado: new Date().toISOString()
+        };
+
+        // 4. Actualizar estado del equipo en Taller
+        const nuevasOrdenes = cloudData.ordenes.map(o => o.id === orden.id ? { ...o, estado: estadoPago === 'Pagado' ? 'Entregado' : 'Listo para Entregar' } : o);
+
+        // 5. Guardar los 3 arrays en la Nube a la vez (Transacción segura)
+        guardarEnNube({
+          ...cloudData,
+          ordenes: nuevasOrdenes,
+          stockRepuestos: nuevoStock,
+          reparaciones: [nuevaRep, ...cloudData.reparaciones]
+        });
+
+        // Limpiar modal
+        setModalRep(false); setOrdenSelecId(''); setRepuestoSelecId(''); setManoObraInput('');
+      };
+
+
+      // ----------------------------------------------------
+      // RENDERIZADO DE PANTALLAS
+      // ----------------------------------------------------
+      if (!isLoaded) return <div className="flex h-screen items-center justify-center bg-slate-950"><div className="animate-pulse text-purple-400 font-bold text-xl">Sincronizando Sistema...</div></div>;
 
       if (!usuarioSesion) {
         return (
           <div className="flex items-center justify-center min-h-screen">
-            <form onSubmit={handleLogin} className="bg-slate-900 p-8 rounded-xl border border-slate-800 space-y-4 max-w-sm w-full">
-              <h1 className="text-2xl font-black text-center text-white mb-6">ICONNECTURE<br/><span className="text-sm text-purple-400">FASE 1: CORE</span></h1>
+            <form onSubmit={handleLogin} className="bg-slate-900 p-8 rounded-2xl border border-slate-800 space-y-5 max-w-xs w-full shadow-2xl">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-purple-600 rounded-2xl mx-auto flex items-center justify-center font-black text-2xl mb-3 shadow-lg">IC</div>
+                <h1 className="text-xl font-black text-white">ICONNECTURE</h1>
+                <p className="text-purple-400 font-bold text-[10px] tracking-widest mt-1">FASE 2: NUBE ACTIVA</p>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 {USUARIOS.map(u => (
-                  <button key={u.id} type="button" onClick={() => setLoginUser(u.nombre)} className={`py-2 rounded-lg font-bold border ${loginUser === u.nombre ? 'bg-purple-600 text-white' : 'bg-slate-950 text-slate-400'}`}>
-                    {u.nombre}
-                  </button>
+                  <button key={u.id} type="button" onClick={() => setLoginUser(u.nombre)} className={`py-2 rounded-lg font-bold border ${loginUser === u.nombre ? 'bg-purple-600/30 border-purple-500 text-purple-300' : 'bg-slate-950 border-slate-800 text-slate-400'}`}>{u.nombre}</button>
                 ))}
               </div>
-              <input type="password" placeholder="Contraseña" required value={loginPass} onChange={e => setLoginPass(e.target.value)} className="w-full bg-slate-950 px-3 py-2 rounded-lg text-center font-mono text-lg text-white" />
-              <button type="submit" className="w-full bg-purple-600 text-white font-bold py-3 rounded-lg">Entrar</button>
+              <input type="password" placeholder="Contraseña" required value={loginPass} onChange={e => setLoginPass(e.target.value)} className="w-full bg-slate-950 border border-slate-700 px-3 py-3 rounded-xl text-center font-mono text-lg text-white focus:outline-none focus:border-purple-500" />
+              <button type="submit" className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3.5 rounded-xl transition shadow-lg">Entrar al Sistema</button>
             </form>
           </div>
         );
@@ -151,62 +282,235 @@
 
       return (
         <div className="flex h-screen overflow-hidden">
-          {/* BARRA LATERAL MÍNIMA */}
-          <aside className="w-48 bg-slate-900 border-r border-slate-800 p-4 flex flex-col">
-            <h2 className="font-black text-white mb-6 text-center">ICONNECTURE</h2>
-            <button className="bg-purple-600 text-white font-bold py-2 rounded-lg mb-auto">Taller y Recepción</button>
-            <div className="text-center text-slate-500 pt-4 border-t border-slate-800">
-              {usuarioSesion.nombre} <br/>
-              <button onClick={() => setUsuarioSesion(null)} className="text-rose-400 mt-2">Salir</button>
+          {/* BARRA LATERAL */}
+          <aside className="w-56 bg-slate-900 border-r border-slate-800 p-4 flex flex-col z-20">
+            <div className="flex items-center gap-3 mb-6 border-b border-slate-800 pb-4">
+              <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center font-black text-lg">IC</div>
+              <div><h2 className="font-bold text-white text-sm">ICONNECTURE</h2><p className="text-[9px] text-purple-400 uppercase tracking-widest font-bold">Fase 2 Cloud</p></div>
+            </div>
+            <nav className="space-y-1.5 flex-1">
+              {[
+                { id: 'taller', label: 'Taller', icon: 'fa-wrench' },
+                { id: 'reparaciones', label: 'Reparaciones', icon: 'fa-microchip' },
+                { id: 'stock', label: 'Stock Repuestos', icon: 'fa-boxes-stacked' }
+              ].map(item => (
+                <button key={item.id} onClick={() => setVista(item.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-bold transition-all ${vista === item.id ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:bg-slate-800/80'}`}>
+                  <i className={`fa-solid ${item.icon} w-5 text-center`}></i><span>{item.label}</span>
+                </button>
+              ))}
+            </nav>
+            <div className="pt-4 border-t border-slate-800 flex justify-between items-center px-1">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-purple-950 rounded-full flex items-center justify-center font-bold text-purple-300 text-xs">{usuarioSesion.nombre.charAt(0)}</div>
+                <span className="font-bold text-white">{usuarioSesion.nombre}</span>
+              </div>
+              <button onClick={() => setUsuarioSesion(null)} className="text-slate-500 hover:text-rose-400"><i className="fa-solid fa-power-off"></i></button>
             </div>
           </aside>
 
-          {/* ÁREA DE TRABAJO PRINCIPAL */}
-          <main className="flex-1 overflow-y-auto p-8">
-            <h2 className="text-2xl font-bold text-white mb-6">Recepción de Equipos (Prueba Cloud)</h2>
+          {/* ÁREA PRINCIPAL */}
+          <main className="flex-1 flex flex-col bg-slate-950">
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* FORMULARIO */}
-              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 h-fit">
-                <h3 className="font-bold text-lg mb-4 text-white">Ingresar Equipo</h3>
-                <form onSubmit={handleCrearOrden} className="space-y-4">
-                  <input type="text" required placeholder="Nombre del Cliente" value={form.cliente} onChange={e => setForm({...form, cliente: e.target.value})} className="w-full bg-slate-950 px-3 py-2 rounded-lg text-white" />
-                  <input type="text" required placeholder="Modelo (Ej: iPhone 11)" value={form.modelo} onChange={e => setForm({...form, modelo: e.target.value})} className="w-full bg-slate-950 px-3 py-2 rounded-lg text-white" />
-                  <input type="text" required placeholder="Falla / Trabajo a realizar" value={form.falla} onChange={e => setForm({...form, falla: e.target.value})} className="w-full bg-slate-950 px-3 py-2 rounded-lg text-white" />
-                  <button type="submit" className="w-full bg-purple-600 text-white font-bold py-2.5 rounded-lg">Guardar en la Nube</button>
-                </form>
-              </div>
-
-              {/* LISTADO */}
-              <div className="space-y-4">
-                <h3 className="font-bold text-lg text-white">Equipos Activos ({cloudData.ordenes.filter(o => o.estado !== 'Entregado').length})</h3>
-                {cloudData.ordenes.filter(o => o.estado !== 'Entregado').length === 0 ? (
-                  <div className="text-slate-500 bg-slate-900 p-6 rounded-xl text-center border border-slate-800">Taller vacío. Probá ingresando un equipo.</div>
+            {/* TOP BAR */}
+            <header className="bg-slate-900 border-b border-slate-800 px-6 py-3 flex justify-between items-center sticky top-0">
+              <div className="flex items-center gap-3">
+                {!editDolar ? (
+                  <button onClick={() => { setNuevoDolar(cloudData.cotizacionDolar); setEditDolar(true); }} className="bg-slate-950 border border-slate-700 px-4 py-2 rounded-lg font-mono text-purple-300 hover:border-purple-500 transition flex items-center gap-2">
+                    <i className="fa-solid fa-dollar-sign text-emerald-400"></i> Dólar Hoy: <strong className="text-white">${cloudData.cotizacionDolar}</strong> <i className="fa-solid fa-pen text-[10px] text-slate-500 ml-1"></i>
+                  </button>
                 ) : (
-                  cloudData.ordenes.filter(o => o.estado !== 'Entregado').map(ord => (
-                    <div key={ord.id} className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-2 shadow">
-                      <div className="flex justify-between items-center">
-                        <span className="font-mono text-[10px] text-purple-400">ID: {ord.id}</span>
-                        <select 
-                          value={ord.estado} 
-                          onChange={(e) => cambiarEstadoOrden(ord.id, e.target.value)}
-                          className="bg-slate-950 px-2 py-1 rounded text-white font-bold text-[10px]"
-                        >
-                          <option value="Recibido">Recibido</option>
-                          <option value="En Diagnóstico">En Diagnóstico</option>
-                          <option value="Listo para Entregar">Listo</option>
-                          <option value="Entregado">Entregado</option>
-                        </select>
-                      </div>
-                      <h4 className="font-bold text-white text-base">{ord.modelo}</h4>
-                      <p className="text-slate-400">Cliente: {ord.cliente}</p>
-                      <p className="bg-slate-950 p-2 rounded text-slate-300">Falla: {ord.falla}</p>
-                    </div>
-                  ))
+                  <div className="flex gap-2">
+                    <input type="number" value={nuevoDolar} onChange={e => setNuevoDolar(e.target.value)} className="w-24 bg-slate-950 border border-emerald-500 rounded-lg px-2 py-1.5 font-mono text-white text-center focus:outline-none" />
+                    <button onClick={() => { guardarEnNube({...cloudData, cotizacionDolar: parseFloat(nuevoDolar) || 1450}); setEditDolar(false); }} className="bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-lg">Guardar</button>
+                  </div>
                 )}
               </div>
+            </header>
+
+            <div className="p-6 lg:p-8 overflow-y-auto flex-1 fade-in">
+              
+              {/* === VISTA 1: TALLER === */}
+              {vista === 'taller' && (
+                <div className="space-y-6 max-w-6xl mx-auto">
+                  <h2 className="text-2xl font-bold text-white tracking-tight">Recepción de Equipos</h2>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 h-fit">
+                      <h3 className="font-bold text-white mb-4">Ingresar Nuevo</h3>
+                      <form onSubmit={handleCrearOrden} className="space-y-3">
+                        <select value={formTaller.tipo_cliente} onChange={e => setFormTaller({...formTaller, tipo_cliente: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold">
+                          <option value="minorista">Minorista</option><option value="gremio">Gremio</option>
+                        </select>
+                        <input type="text" required placeholder="Nombre del Cliente" value={formTaller.cliente} onChange={e => setFormTaller({...formTaller, cliente: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+                        <input type="text" required placeholder="Modelo (Ej: iPhone 12)" value={formTaller.modelo} onChange={e => setFormTaller({...formTaller, modelo: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+                        <textarea required placeholder="Falla / Trabajo a realizar..." value={formTaller.falla} onChange={e => setFormTaller({...formTaller, falla: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" rows="2"></textarea>
+                        <button type="submit" className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-lg transition shadow-lg mt-2">Guardar Ingreso</button>
+                      </form>
+                    </div>
+
+                    <div className="lg:col-span-2 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-white text-lg">Equipos en Taller ({cloudData.ordenes.filter(o => o.estado !== 'Entregado').length})</h3>
+                        <button onClick={() => setModalRep(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg transition shadow flex items-center gap-2"><i className="fa-solid fa-check"></i> Cargar Reparación Lista</button>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {cloudData.ordenes.filter(o => o.estado !== 'Entregado').length === 0 ? (
+                          <div className="col-span-2 text-slate-500 text-center py-10 bg-slate-900 border border-slate-800 rounded-2xl border-dashed">Taller vacío.</div>
+                        ) : (
+                          cloudData.ordenes.filter(o => o.estado !== 'Entregado').map(ord => (
+                            <div key={ord.id} className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-2.5">
+                              <div className="flex justify-between items-start">
+                                <div><span className="font-mono text-[9px] text-purple-400 bg-purple-950/30 px-2 py-0.5 rounded">#ORD-{String(ord.id).slice(-4)}</span><h4 className="font-bold text-white text-base mt-1">{ord.equipo_modelo}</h4><p className="text-[10px] text-slate-400">{ord.cliente_nombre}</p></div>
+                                <select value={ord.estado} onChange={(e) => cambiarEstadoOrden(ord.id, e.target.value)} className="bg-slate-950 border border-slate-700 px-2 py-1 rounded text-[10px] font-bold text-white focus:outline-none"><option value="Recibido">Recibido</option><option value="En Diagnóstico">En Diagnóstico</option><option value="Esperando Repuesto">Esp. Repuesto</option><option value="Listo para Entregar">Listo</option></select>
+                              </div>
+                              <div className="bg-slate-950 p-2.5 rounded-lg text-slate-300 text-[11px] border border-slate-800/50"><p><strong className="text-slate-500">Falla:</strong> {ord.falla_declarada}</p></div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* === VISTA 2: STOCK BIMONETARIO === */}
+              {vista === 'stock' && (
+                <div className="space-y-6 max-w-6xl mx-auto">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-white tracking-tight">Stock de Repuestos</h2>
+                    <div className="text-right bg-slate-900 border border-slate-800 rounded-xl px-4 py-2">
+                      <p className="text-[9px] text-slate-400 font-bold uppercase">Capital en Inventario</p>
+                      <p className="text-xl font-black text-emerald-400">{fmtMoney(cloudData.stockRepuestos.reduce((a,s)=>a+(s.cantidad*s.costo_unitario_usd),0))}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800">
+                    <form onSubmit={handleGuardarStock} className="flex gap-2">
+                      <select value={formStock.categoria} onChange={e => setFormStock({...formStock, categoria: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-2 text-white"><option value="Batería">Batería</option><option value="Pantalla / Módulo">Pantalla</option><option value="Insumo">Insumo</option></select>
+                      <input type="text" required placeholder="Modelo (Ej: Batería iPhone X)" value={formStock.modelo} onChange={e => setFormStock({...formStock, modelo: e.target.value})} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white" />
+                      <input type="number" required placeholder="Cant." value={formStock.cantidad} onChange={e => setFormStock({...formStock, cantidad: e.target.value})} className="w-16 bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-white font-mono" />
+                      <div className="flex gap-1 border border-slate-700 rounded-lg p-1 bg-slate-950">
+                        <input type="number" step="any" required placeholder="Costo" value={formStock.costo} onChange={e => setFormStock({...formStock, costo: e.target.value})} className="w-20 bg-transparent px-2 text-white font-mono focus:outline-none" />
+                        <select value={formStock.moneda} onChange={e => setFormStock({...formStock, moneda: e.target.value})} className="bg-purple-600 rounded px-1.5 text-white font-bold text-[10px] focus:outline-none"><option value="USD">USD</option><option value="ARS">ARS</option></select>
+                      </div>
+                      <button type="submit" className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded-lg transition">Guardar</button>
+                    </form>
+                    <PreviewBimonetario monto={formStock.costo} moneda={formStock.moneda} cotizacion={cloudData.cotizacionDolar} />
+                  </div>
+
+                  <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 overflow-x-auto">
+                    <table className="w-full text-left text-xs text-slate-300">
+                      <thead className="bg-slate-950 text-slate-400 font-bold border-b border-slate-800">
+                        <tr><th className="px-4 py-3">Modelo</th><th className="px-4 py-3 text-center">Cant.</th><th className="px-4 py-3 text-right">Costo USD</th><th className="px-4 py-3 text-center">Borrar</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50">
+                        {cloudData.stockRepuestos.length === 0 ? <tr><td colSpan="4" className="text-center py-6 text-slate-500">Sin repuestos.</td></tr> : cloudData.stockRepuestos.map(s => (
+                          <tr key={s.id} className="hover:bg-slate-800/30">
+                            <td className="px-4 py-3 font-bold text-white">{s.categoria}: {s.modelo} {s.moneda_original === 'ARS' && <span className="text-[9px] text-slate-500 font-mono ml-2">(Fijado: ${s.cotizacion_historica})</span>}</td>
+                            <td className="px-4 py-3 text-center"><span className="bg-slate-800 text-white px-2 py-1 rounded">{s.cantidad}</span></td>
+                            <td className="px-4 py-3 font-mono text-emerald-400 text-right">{fmtMoney(s.costo_unitario_usd)}</td>
+                            <td className="px-4 py-3 text-center"><button onClick={() => guardarEnNube({...cloudData, stockRepuestos: cloudData.stockRepuestos.filter(x=>x.id!==s.id)})} className="text-slate-500 hover:text-rose-400"><i className="fa-solid fa-trash"></i></button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* === VISTA 3: REPARACIONES === */}
+              {vista === 'reparaciones' && (
+                <div className="space-y-6 max-w-7xl mx-auto">
+                  <header className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-white tracking-tight">Reparaciones Históricas</h2>
+                    <button onClick={() => setModalRep(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg transition shadow flex items-center gap-2"><i className="fa-solid fa-plus"></i> Finalizar Trabajo</button>
+                  </header>
+                  <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 overflow-x-auto">
+                    <table className="w-full text-left text-xs text-slate-300">
+                      <thead className="bg-slate-950 text-slate-400 font-bold border-b border-slate-800">
+                        <tr><th className="px-4 py-3">Equipo / Cliente</th><th className="px-4 py-3">Repuesto</th><th className="px-4 py-3 text-right">M. Obra</th><th className="px-4 py-3 text-right">Total</th><th className="px-4 py-3 text-center">Estado</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50">
+                        {cloudData.reparaciones.length === 0 ? <tr><td colSpan="5" className="text-center py-8 text-slate-500">No hay reparaciones cobradas.</td></tr> : cloudData.reparaciones.map(r => (
+                          <tr key={r.id} className="hover:bg-slate-800/30">
+                            <td className="px-4 py-3"><div className="font-bold text-white">{r.equipo_modelo}</div><div className="text-[10px] text-slate-400">{r.cliente_nombre}</div></td>
+                            <td className="px-4 py-3 text-[10px] text-slate-400">{r.repuesto_usado}</td>
+                            <td className="px-4 py-3 font-mono text-emerald-400 text-right">{fmtMoney(r.mano_obra_usd)}</td>
+                            <td className="px-4 py-3 font-mono font-bold text-white text-right">{fmtMoney(r.total_usd)}</td>
+                            <td className="px-4 py-3 text-center">
+                              {r.estado_pago === 'Pendiente' ? (
+                                <button onClick={() => {
+                                  const nuevasReps = cloudData.reparaciones.map(x => x.id === r.id ? {...x, estado_pago: 'Pagado'} : x);
+                                  guardarEnNube({...cloudData, reparaciones: nuevasReps});
+                                }} className="bg-emerald-600 text-white px-2 py-1 rounded font-bold text-[9px]">Cobrar</button>
+                              ) : <span className="bg-slate-800 text-slate-300 px-2 py-1 rounded font-bold text-[9px] uppercase"><i className="fa-solid fa-check text-emerald-500 mr-1"></i>Pagado</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+            </main>
+          </div>
+
+          {/* === MODAL: CARGAR REPARACIÓN (DESCUENTA STOCK Y BIMONETARIO) === */}
+          {modalRep && (
+            <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 z-50 fade-in">
+              <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                  <h3 className="font-bold text-white text-base">Liquidación de Trabajo</h3>
+                  <button onClick={() => setModalRep(false)} className="text-slate-400 hover:text-white"><i className="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">1. Elegir Equipo Terminado</label>
+                    <select value={ordenSelecId} onChange={e => setOrdenSelecId(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2.5 text-white font-bold">
+                      <option value="">-- Seleccionar Equipo --</option>
+                      {cloudData.ordenes.filter(o => o.estado !== 'Entregado').map(o => <option key={o.id} value={o.id}>{o.equipo_modelo} ({o.cliente_nombre})</option>)}
+                    </select>
+                  </div>
+
+                  {ordenSelecId && (
+                    <div className="space-y-4 pt-2 fade-in">
+                      <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">2. Repuesto Usado (Descuenta Stock)</label>
+                        <select value={repuestoSelecId} onChange={e => setRepuestoSelecId(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-md px-2 py-2 text-white">
+                          <option value="">-- Mantenimiento (Sin repuesto) --</option>
+                          {cloudData.stockRepuestos.filter(s => s.cantidad > 0).map(s => <option key={s.id} value={s.id}>{s.categoria}: {s.modelo} (${s.costo_unitario_usd} USD)</option>)}
+                        </select>
+                      </div>
+
+                      <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">3. Ganancia Neta / Mano de Obra</label>
+                        <div className="flex gap-2">
+                          <input type="number" step="any" required placeholder="Monto..." value={manoObraInput} onChange={e => setManoObraInput(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-white font-mono" />
+                          <select value={monedaManoObra} onChange={e => setMonedaManoObra(e.target.value)} className="w-20 bg-purple-600 rounded-md px-2 py-2 text-white font-bold focus:outline-none"><option value="ARS">ARS</option><option value="USD">USD</option></select>
+                        </div>
+                        <PreviewBimonetario monto={manoObraInput} moneda={monedaManoObra} cotizacion={cloudData.cotizacionDolar} />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">4. Estado del Pago</label>
+                        <select value={estadoPago} onChange={e => setEstadoPago(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold">
+                          <option value="Pendiente">⏳ Pendiente de Cobro</option>
+                          <option value="Pagado">✅ Pagado (Acreditado en caja)</option>
+                        </select>
+                      </div>
+
+                      <div className="flex gap-2 pt-2 border-t border-slate-800">
+                        <button onClick={handleConfirmarReparacion} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg transition">Confirmar y Guardar</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </main>
+          )}
+
         </div>
       );
     }

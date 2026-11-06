@@ -36,7 +36,6 @@
     const GREMIOS_DEFAULT = ['ICONNECTURE', 'Nico', 'Román'];
 
     function App() {
-      // Carga limpia de usuarios asegurando que estén los 4
       const [usuarios, setUsuarios] = useState(() => {
         const guardados = JSON.parse(localStorage.getItem('ic_usuarios'));
         if (!guardados || !Array.isArray(guardados)) return USUARIOS_DEFAULT;
@@ -50,22 +49,24 @@
       const [loginPass, setLoginPass] = useState('');
       const [loginError, setLoginError] = useState('');
 
-      // Cotización & Privacidad
       const [cotizacionDolar, setCotizacionDolar] = useState(() => parseFloat(localStorage.getItem('ic_cotizacion_dolar')) || 1450);
       const [modoOculto, setModoOculto] = useState(false);
       const [modalDolar, setModalDolar] = useState(false);
       const [nuevaCotizacionInput, setNuevaCotizacionInput] = useState('');
 
-      // Config Cloud Supabase
       const [urlSupabase, setUrlSupabase] = useState(() => localStorage.getItem('ic_url_supa') || '');
       const [keySupabase, setKeySupabase] = useState(() => localStorage.getItem('ic_key_supa') || '');
 
-      // Navegación
       const [vista, setVista] = useState('dashboard');
       const [listaGremios, setListaGremios] = useState(() => JSON.parse(localStorage.getItem('ic_lista_gremios')) || GREMIOS_DEFAULT);
 
-      // Patrimonio (PIN de 6 dígitos + Saldo + Gastos)
-      const [pinPatrimonio, setPinPatrimonio] = useState(() => localStorage.getItem('ic_pin_patrimonio') || '123456');
+      // Corrección de migración de PIN: Si el PIN guardado en localStorage no tiene 6 dígitos, resetea a 123456
+      const [pinPatrimonio, setPinPatrimonio] = useState(() => {
+        const guardado = localStorage.getItem('ic_pin_patrimonio');
+        if (!guardado || guardado.length !== 6) return '123456';
+        return guardado;
+      });
+
       const [patrimonioDesbloqueado, setPatrimonioDesbloqueado] = useState(false);
       const [pinInput, setPinInput] = useState('');
       const [nuevoPinInput, setNuevoPinInput] = useState('');
@@ -73,7 +74,6 @@
       const [gastosPersonales, setGastosPersonales] = useState(() => JSON.parse(localStorage.getItem('ic_gastos_personales')) || []);
       const [gastosFijos, setGastosFijos] = useState(() => JSON.parse(localStorage.getItem('ic_gastos_fijos')) || []);
 
-      // Base de Datos Locales
       const [stockRepuestos, setStockRepuestos] = useState(() => JSON.parse(localStorage.getItem('ic_stock_repuestos')) || []);
       const [ordenes, setOrdenes] = useState(() => JSON.parse(localStorage.getItem('ic_ordenes')) || []);
       const [reparaciones, setReparaciones] = useState(() => JSON.parse(localStorage.getItem('ic_reparaciones')) || []);
@@ -82,7 +82,6 @@
       const [comisionesPagos, setComisionesPagos] = useState(() => JSON.parse(localStorage.getItem('ic_comisiones_pagos')) || []);
       const [logs, setLogs] = useState(() => JSON.parse(localStorage.getItem('ic_logs')) || []);
 
-      // Modales & Filtros
       const [modalEditStock, setModalEditStock] = useState(null);
       const [tipoReparacionIngreso, setTipoReparacionIngreso] = useState('minorista');
       const [gremioSeleccionado, setGremioSeleccionado] = useState('ICONNECTURE');
@@ -107,7 +106,6 @@
       const [filtroUsuarioLog, setFiltroUsuarioLog] = useState('todos');
       const [filtroFechaLogDia, setFiltroFechaLogDia] = useState('');
 
-      // Guardar en LocalStorage
       useEffect(() => { localStorage.setItem('ic_usuarios', JSON.stringify(usuarios)); }, [usuarios]);
       useEffect(() => { localStorage.setItem('ic_ordenes', JSON.stringify(ordenes)); }, [ordenes]);
       useEffect(() => { localStorage.setItem('ic_reparaciones', JSON.stringify(reparaciones)); }, [reparaciones]);
@@ -179,7 +177,6 @@
         registrarLog('Seguridad', 'Cambio Clave', `${usuarioSesion.nombre} cambió su contraseña.`);
       };
 
-      // Ingreso Taller
       const handleGuardarIngreso = (e) => {
         e.preventDefault();
         if (formIngreso.imei_serie && !esImeiValido(formIngreso.imei_serie)) {
@@ -239,7 +236,6 @@
         alert('✅ Equipo ingresado al taller.');
       };
 
-      // Confirmar Reparación y Descontar Stock
       const handleConfirmarReparacion = () => {
         if (!equipoSeleccionadoParaReparar) return;
 
@@ -332,7 +328,6 @@
         return gastosFijos.reduce((acc, g) => acc + (parseFloat(g.monto_usd) || 0), 0);
       }, [gastosFijos]);
 
-      // LOGIN SCREEN (CON LOS 4 USUARIOS)
       if (!usuarioSesion) {
         return (
           <div className="flex items-center justify-center min-h-screen bg-slate-950 px-4">
@@ -399,7 +394,7 @@
 
       return (
         <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden">
-          {/* BARRA LATERAL AMPLIADA (w-72 + MÁS GRANDE) */}
+          {/* BARRA LATERAL AMPLIADA */}
           <aside className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col justify-between p-5 overflow-y-auto hide-scrollbar">
             <div>
               <div className="flex items-center gap-3 px-2 py-3 mb-5 border-b border-slate-800">
@@ -672,7 +667,7 @@
                 </div>
               )}
 
-              {/* GASTOS DEL NEGOCIOS (COMPLETO RESTAURADO) */}
+              {/* GASTOS DEL NEGOCIO */}
               {vista === 'gastos' && (
                 <div className="space-y-6 max-w-5xl">
                   <header>
@@ -737,7 +732,7 @@
                 </div>
               )}
 
-              {/* ME DEBEN (COMPLETO RESTAURADO) */}
+              {/* ME DEBEN */}
               {vista === 'medeben' && (
                 <div className="space-y-6 max-w-5xl">
                   <header>
@@ -796,7 +791,7 @@
                 </div>
               )}
 
-              {/* COMISIONES BRUNO (COMPLETO RESTAURADO) */}
+              {/* COMISIONES BRUNO */}
               {vista === 'comisiones' && (
                 <div className="space-y-6 max-w-4xl">
                   <header>
@@ -850,7 +845,7 @@
                 </div>
               )}
 
-              {/* SOCIOS Y REPARTO (COMPLETO RESTAURADO Y VISUAL) */}
+              {/* SOCIOS Y REPARTO */}
               {vista === 'socios' && (
                 <div className="space-y-6 max-w-5xl">
                   <header>
@@ -908,7 +903,7 @@
                 </div>
               )}
 
-              {/* ESTADÍSTICAS GLOBALES (COMPLETO RESTAURADO CON GRÁFICAS) */}
+              {/* ESTADÍSTICAS GLOBALES */}
               {vista === 'estadisticas' && (
                 <div className="space-y-6">
                   <header>
@@ -958,7 +953,7 @@
                 </div>
               )}
 
-              {/* REGISTRO DE ACTIVIDAD (COMPLETO RESTAURADO CON TABLA) */}
+              {/* REGISTRO DE ACTIVIDAD */}
               {vista === 'actividad' && (
                 <div className="space-y-6">
                   <header>
@@ -1020,7 +1015,7 @@
                 </div>
               )}
 
-              {/* PATRIMONIO DE BRUNO (PIN 6 DÍGITOS TOTALMENTE REPARADO) */}
+              {/* PATRIMONIO DE BRUNO (CON BOTÓN DE RESTABLECER PIN SI HAY ERROR) */}
               {vista === 'patrimonio' && (
                 <div className="space-y-6 max-w-4xl">
                   <header>
@@ -1035,37 +1030,52 @@
                       </div>
                       <div>
                         <h3 className="text-xl font-bold text-white">PIN Secreto de Bruno</h3>
-                        <p className="text-xs text-slate-400 mt-1">Ingresá los 6 dígitos para ver tu patrimonio privado</p>
+                        <p className="text-xs text-slate-400 mt-1">Ingresá tu clave de 6 dígitos (Por defecto: 123456)</p>
                       </div>
 
-                      <input
-                        type="password"
-                        maxLength="6"
-                        value={pinInput}
-                        onChange={e => {
-                          const val = e.target.value;
-                          setPinInput(val);
-                          if (val === pinPatrimonio) {
-                            setPatrimonioDesbloqueado(true);
-                            setPinInput('');
-                          }
-                        }}
-                        placeholder="••••••"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-center text-3xl font-mono text-white focus:outline-none focus:border-purple-500 tracking-widest"
-                      />
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        if (pinInput.trim() === pinPatrimonio) {
+                          setPatrimonioDesbloqueado(true);
+                          setPinInput('');
+                        } else {
+                          alert(`PIN incorrecto. El PIN actual es: ${pinPatrimonio}`);
+                        }
+                      }} className="space-y-4">
+                        <input
+                          type="password"
+                          maxLength="6"
+                          value={pinInput}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setPinInput(val);
+                            if (val === pinPatrimonio) {
+                              setPatrimonioDesbloqueado(true);
+                              setPinInput('');
+                            }
+                          }}
+                          placeholder="••••••"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-center text-3xl font-mono text-white focus:outline-none focus:border-purple-500 tracking-widest"
+                        />
+
+                        <button
+                          type="submit"
+                          className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl transition"
+                        >
+                          Desbloquear Patrimonio
+                        </button>
+                      </form>
 
                       <button
+                        type="button"
                         onClick={() => {
-                          if (pinInput === pinPatrimonio) {
-                            setPatrimonioDesbloqueado(true);
-                            setPinInput('');
-                          } else {
-                            alert('PIN incorrecto.');
-                          }
+                          setPinPatrimonio('123456');
+                          localStorage.setItem('ic_pin_patrimonio', '123456');
+                          alert('✅ PIN restablecido correctamente a: 123456');
                         }}
-                        className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl transition"
+                        className="text-xs text-purple-400 hover:underline pt-2 block mx-auto"
                       >
-                        Desbloquear Patrimonio
+                        ¿PIN bloqueado? Restablecer a 123456
                       </button>
                     </div>
                   ) : (
@@ -1133,7 +1143,7 @@
                 </div>
               )}
 
-              {/* CONFIGURACIÓN API (COMPLETO RESTAURADO) */}
+              {/* CONFIGURACIÓN API */}
               {vista === 'config' && (
                 <div className="space-y-6 max-w-xl">
                   <header>
@@ -1157,7 +1167,7 @@
                 </div>
               )}
 
-              {/* CUENTAS (COMPLETO RESTAURADO) */}
+              {/* CUENTAS */}
               {vista === 'cuentas' && (
                 <div className="space-y-6 max-w-4xl">
                   <header>
@@ -1202,7 +1212,7 @@
                 </div>
               )}
 
-              {/* STOCK (COMPLETO RESTAURADO) */}
+              {/* STOCK */}
               {vista === 'stock' && (
                 <div className="space-y-6">
                   <header className="flex justify-between items-center">
@@ -1284,7 +1294,7 @@
                 </div>
               )}
 
-              {/* REPARACIONES (COMPLETO RESTAURADO) */}
+              {/* REPARACIONES */}
               {vista === 'reparaciones' && (
                 <div className="space-y-6">
                   <header className="flex justify-between items-center">
@@ -1344,7 +1354,7 @@
                 </div>
               )}
 
-              {/* GARANTÍAS (COMPLETO RESTAURADO) */}
+              {/* GARANTÍAS */}
               {vista === 'garantias' && (
                 <div className="space-y-6">
                   <header><h2 className="text-2xl font-bold text-white">Control de Garantías</h2></header>

@@ -26,7 +26,7 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo } = React;
 
-    // Configuración Inicial de Usuarios (Incluye Yaco y Priscila)
+    // Lista Maestra de Usuarios
     const USUARIOS_DEFAULT = [
       { id: '1', nombre: 'Bruno', pass: 'bruno123', rol: 'Administrador / Técnico' },
       { id: '2', nombre: 'Mateo', pass: 'mateo123', rol: 'Socio' },
@@ -34,15 +34,25 @@
       { id: '4', nombre: 'Priscila', pass: 'priscila123', rol: 'Contadora' }
     ];
 
+    // Clientes Gremio Predeterminados
+    const GREMIOS_DEFAULT = ['ICONNECTURE', 'Nico', 'Román'];
+
     function App() {
-      // Auth & Sesión
-      const [usuarios, setUsuarios] = useState(() => JSON.parse(localStorage.getItem('ic_usuarios')) || USUARIOS_DEFAULT);
+      // Garantizar que los 4 usuarios existan incluso si localStorage tiene la lista vieja
+      const [usuarios, setUsuarios] = useState(() => {
+        const guardados = JSON.parse(localStorage.getItem('ic_usuarios'));
+        if (!guardados || !Array.isArray(guardados)) return USUARIOS_DEFAULT;
+        const nombresExistentes = guardados.map(u => u.nombre);
+        const faltantes = USUARIOS_DEFAULT.filter(u => !nombresExistentes.includes(u.nombre));
+        return [...guardados, ...faltantes];
+      });
+
       const [usuarioSesion, setUsuarioSesion] = useState(null);
       const [loginUser, setLoginUser] = useState('Bruno');
       const [loginPass, setLoginPass] = useState('');
       const [loginError, setLoginError] = useState('');
 
-      // Cotización Dólar & Privacidad
+      // Topbar & Privacidad
       const [cotizacionDolar, setCotizacionDolar] = useState(() => parseFloat(localStorage.getItem('ic_cotizacion_dolar')) || 1450);
       const [modoOculto, setModoOculto] = useState(false);
       const [modalDolar, setModalDolar] = useState(false);
@@ -51,7 +61,10 @@
       // Navegación
       const [vista, setVista] = useState('dashboard');
 
-      // Patrimonio (PIN 6 dígitos + Saldo Inicial + Gastos Fijos / Cuotas)
+      // Clientes Gremio Lista
+      const [listaGremios, setListaGremios] = useState(() => JSON.parse(localStorage.getItem('ic_lista_gremios')) || GREMIOS_DEFAULT);
+
+      // Patrimonio (PIN de 6 dígitos)
       const [pinPatrimonio, setPinPatrimonio] = useState(() => localStorage.getItem('ic_pin_patrimonio') || '123456');
       const [patrimonioDesbloqueado, setPatrimonioDesbloqueado] = useState(false);
       const [pinInput, setPinInput] = useState('');
@@ -60,10 +73,8 @@
       const [gastosPersonales, setGastosPersonales] = useState(() => JSON.parse(localStorage.getItem('ic_gastos_personales')) || []);
       const [gastosFijos, setGastosFijos] = useState(() => JSON.parse(localStorage.getItem('ic_gastos_fijos')) || []);
 
-      // Stock / Inventario
-      const [stockRepuestos, setStockRepuestos] = useState(() => JSON.parse(localStorage.getItem('ic_stock_repuestos')) || []);
-
       // Base de Datos Locales
+      const [stockRepuestos, setStockRepuestos] = useState(() => JSON.parse(localStorage.getItem('ic_stock_repuestos')) || []);
       const [ordenes, setOrdenes] = useState(() => JSON.parse(localStorage.getItem('ic_ordenes')) || []);
       const [reparaciones, setReparaciones] = useState(() => JSON.parse(localStorage.getItem('ic_reparaciones')) || []);
       const [gastosNegocio, setGastosNegocio] = useState(() => JSON.parse(localStorage.getItem('ic_gastos_negocio')) || []);
@@ -71,7 +82,7 @@
       const [comisionesPagos, setComisionesPagos] = useState(() => JSON.parse(localStorage.getItem('ic_comisiones_pagos')) || []);
       const [logs, setLogs] = useState(() => JSON.parse(localStorage.getItem('ic_logs')) || []);
 
-      // Modales & Cambio Pass
+      // Modales & Formularios
       const [passActual, setPassActual] = useState('');
       const [passNueva, setPassNueva] = useState('');
       const [msgPass, setMsgPass] = useState('');
@@ -82,16 +93,22 @@
       const [manoObraInput, setManoObraInput] = useState('');
       const [medioPagoInput, setMedioPagoInput] = useState('Efectivo USD');
       const [monedaCarga, setMonedaCarga] = useState('USD');
-      const [cotizacionUsadaCarga, setCotizacionUsadaCarga] = useState(cotizacionDolar);
 
-      // Form Recepción Taller
+      // Form Recepción Taller (Minorista vs Gremio Simplificado)
       const [tipoReparacionIngreso, setTipoReparacionIngreso] = useState('minorista');
+      const [gremioSeleccionado, setGremioSeleccionado] = useState('ICONNECTURE');
+      const [nuevoGremioNombre, setNuevoGremioNombre] = useState('');
+      
       const [formIngreso, setFormIngreso] = useState({
         cliente_nombre: '', cliente_telefono: '', cliente_telefono_alt: '',
         equipo_modelo: '', imei_serie: '', prioridad: 'Moderada',
-        falla_declarada: '', presupuesto_estimado: '', estado_fisico: '',
-        tuvo_reparacion_previa: 'no', detalle_reparacion_previa: ''
+        falla_declarada: '', presupuesto_estimado: '', estado_fisico: ''
       });
+
+      // Filtros de Actividad y Garantías
+      const [filtroUsuarioLog, setFiltroUsuarioLog] = useState('todos');
+      const [filtroFechaLogDia, setFiltroFechaLogDia] = useState('');
+      const [busquedaImeiGarantia, setBusquedaImeiGarantia] = useState('');
 
       // Guardar en LocalStorage
       useEffect(() => { localStorage.setItem('ic_usuarios', JSON.stringify(usuarios)); }, [usuarios]);
@@ -104,6 +121,7 @@
       useEffect(() => { localStorage.setItem('ic_gastos_personales', JSON.stringify(gastosPersonales)); }, [gastosPersonales]);
       useEffect(() => { localStorage.setItem('ic_gastos_fijos', JSON.stringify(gastosFijos)); }, [gastosFijos]);
       useEffect(() => { localStorage.setItem('ic_stock_repuestos', JSON.stringify(stockRepuestos)); }, [stockRepuestos]);
+      useEffect(() => { localStorage.setItem('ic_lista_gremios', JSON.stringify(listaGremios)); }, [listaGremios]);
       useEffect(() => { localStorage.setItem('ic_cotizacion_dolar', cotizacionDolar.toString()); }, [cotizacionDolar]);
       useEffect(() => { localStorage.setItem('ic_pin_patrimonio', pinPatrimonio); }, [pinPatrimonio]);
       useEffect(() => { localStorage.setItem('ic_saldo_inicial_bruno', saldoInicialBruno.toString()); }, [saldoInicialBruno]);
@@ -139,7 +157,7 @@
           setUsuarioSesion(found);
           setLoginError('');
           setLoginPass('');
-          registrarLog('Seguridad', 'Inicio de Sesión', `Acceso de ${found.nombre}`);
+          registrarLog('Seguridad', 'Inicio de Sesión', `Acceso concedido a ${found.nombre}`);
         } else {
           setLoginError('Contraseña incorrecta');
         }
@@ -152,7 +170,7 @@
           return;
         }
         if (!passNueva || passNueva.length < 4) {
-          setMsgPass('❌ Mínimo 4 caracteres.');
+          setMsgPass('❌ La nueva clave debe tener al menos 4 caracteres.');
           return;
         }
         const actualizados = usuarios.map(u => u.nombre === usuarioSesion.nombre ? { ...u, pass: passNueva } : u);
@@ -164,36 +182,64 @@
         registrarLog('Seguridad', 'Cambio Clave', `${usuarioSesion.nombre} cambió su contraseña.`);
       };
 
+      // Guardar Ingreso Taller (Minorista vs Gremio Simplificado)
       const handleGuardarIngreso = (e) => {
         e.preventDefault();
         if (formIngreso.imei_serie && !esImeiValido(formIngreso.imei_serie)) {
-          alert('El IMEI debe contener exactamente 15 dígitos numéricos.');
+          alert('El IMEI debe contener exactamente 15 dígitos numéricos sin letras ni espacios.');
           return;
+        }
+
+        let clienteNombreFinal = formIngreso.cliente_nombre;
+        let clienteTelFinal = formIngreso.cliente_telefono;
+
+        if (tipoReparacionIngreso === 'gremio') {
+          if (gremioSeleccionado === 'NUEVO') {
+            if (!nuevoGremioNombre.trim()) {
+              alert('Ingresá el nombre del nuevo gremio.');
+              return;
+            }
+            clienteNombreFinal = `Gremio: ${nuevoGremioNombre.trim()}`;
+            if (!listaGremios.includes(nuevoGremioNombre.trim())) {
+              setListaGremios([...listaGremios, nuevoGremioNombre.trim()]);
+            }
+          } else {
+            clienteNombreFinal = `Gremio: ${gremioSeleccionado}`;
+          }
+          clienteTelFinal = 'Gremio / Taller';
         }
 
         const antecedente = ordenes.find(o => o.imei_serie && o.imei_serie === formIngreso.imei_serie);
         if (antecedente) {
-          alert(`⚠️ ALERTA DE REINGRESO: Este IMEI ya fue ingresado el ${new Date(antecedente.fecha_ingreso).toLocaleDateString()}.`);
+          alert(`⚠️ ALERTA DE REINGRESO: Este IMEI ya ingresó anteriormente el ${new Date(antecedente.fecha_ingreso).toLocaleDateString()}.`);
         }
 
         const nuevaOrden = {
           id: Date.now(),
           tipo_cliente: tipoReparacionIngreso,
-          ...formIngreso,
+          cliente_nombre: clienteNombreFinal,
+          cliente_telefono: clienteTelFinal,
+          cliente_telefono_alt: tipoReparacionIngreso === 'minorista' ? formIngreso.cliente_telefono_alt : 'N/A',
+          equipo_modelo: formIngreso.equipo_modelo,
+          imei_serie: formIngreso.imei_serie,
+          prioridad: formIngreso.prioridad,
+          falla_declarada: formIngreso.falla_declarada,
+          presupuesto_estimado: formIngreso.presupuesto_estimado,
+          estado_fisico: formIngreso.estado_fisico,
           estado: 'Recibido',
           fecha_ingreso: new Date().toISOString()
         };
 
         setOrdenes([nuevaOrden, ...ordenes]);
-        registrarLog('Taller', 'Nuevo Ingreso', `${formIngreso.equipo_modelo} (${tipoReparacionIngreso.toUpperCase()})`);
+        registrarLog('Taller', 'Nuevo Ingreso', `${formIngreso.equipo_modelo} - ${clienteNombreFinal}`);
 
         setFormIngreso({
           cliente_nombre: '', cliente_telefono: '', cliente_telefono_alt: '',
           equipo_modelo: '', imei_serie: '', prioridad: 'Moderada',
-          falla_declarada: '', presupuesto_estimado: '', estado_fisico: '',
-          tuvo_reparacion_previa: 'no', detalle_reparacion_previa: ''
+          falla_declarada: '', presupuesto_estimado: '', estado_fisico: ''
         });
-        alert('✅ Equipo ingresado con éxito.');
+        setNuevoGremioNombre('');
+        alert('✅ Equipo ingresado al taller con éxito.');
       };
 
       const handleConfirmarReparacion = () => {
@@ -203,8 +249,8 @@
         const manoObraVal = parseFloat(manoObraInput) || 0;
         let totalCobrado = costoTotalRepuestos + manoObraVal;
 
-        if (monedaCarga === 'ARS') totalCobrado = totalCobrado / cotizacionUsadaCarga;
-        const gananciaNeta = manoObraVal / (monedaCarga === 'ARS' ? cotizacionUsadaCarga : 1);
+        if (monedaCarga === 'ARS') totalCobrado = totalCobrado / cotizacionDolar;
+        const gananciaNeta = manoObraVal / (monedaCarga === 'ARS' ? cotizacionDolar : 1);
 
         const nuevaRep = {
           id: Date.now(),
@@ -216,7 +262,7 @@
           tipo_cliente: equipoSeleccionadoParaReparar.tipo_cliente,
           tecnico: usuarioSesion.nombre,
           repuestos: repuestosLista,
-          costo_repuestos_usd: costoTotalRepuestos / (monedaCarga === 'ARS' ? cotizacionUsadaCarga : 1),
+          costo_repuestos_usd: costoTotalRepuestos / (monedaCarga === 'ARS' ? cotizacionDolar : 1),
           mano_obra_usd: gananciaNeta,
           total_usd: totalCobrado,
           medio_pago: medioPagoInput,
@@ -227,7 +273,7 @@
 
         setReparaciones([nuevaRep, ...reparaciones]);
         setOrdenes(ordenes.map(o => o.id === equipoSeleccionadoParaReparar.id ? { ...o, estado: 'Listo para Entregar' } : o));
-        registrarLog('Reparaciones', 'Carga Trabajo', `Reparación cargada para ${nuevaRep.equipo_modelo}`);
+        registrarLog('Reparaciones', 'Carga Trabajo', `Reparación registrada para ${nuevaRep.equipo_modelo}`);
 
         setEquipoSeleccionadoParaReparar(null);
         setModalCargarReparacion(false);
@@ -240,7 +286,7 @@
         if (!rep) return;
         setReparaciones(reparaciones.map(r => r.id === id ? { ...r, estado_pago: 'Pagado', fecha_pago: new Date().toISOString() } : r));
         setOrdenes(ordenes.map(o => o.id === rep.orden_id ? { ...o, estado: 'Entregado', fecha_entrega: new Date().toISOString() } : o));
-        registrarLog('Finanzas', 'Cobro Reparación', `Cobro efectivo: ${rep.equipo_modelo}`);
+        registrarLog('Finanzas', 'Cobro Reparación', `Cobro registrado para ${rep.equipo_modelo}`);
       };
 
       const comisionesCalculadas = useMemo(() => {
@@ -270,6 +316,7 @@
         return gastosFijos.reduce((acc, g) => acc + (parseFloat(g.monto_usd) || 0), 0);
       }, [gastosFijos]);
 
+      // LOGIN SCREEN (CON LOS 4 USUARIOS)
       if (!usuarioSesion) {
         return (
           <div className="flex items-center justify-center min-h-screen bg-slate-950 px-4">
@@ -279,7 +326,7 @@
                   IC
                 </div>
                 <h1 className="text-2xl font-bold text-white tracking-tight">ICONNECTURE</h1>
-                <p className="text-xs text-purple-400 font-semibold tracking-wider uppercase">Plataforma de Gestión Integrada</p>
+                <p className="text-xs text-purple-400 font-semibold tracking-wider uppercase">Sistema de Servicio Técnico & Gestión</p>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-4 pt-2">
@@ -291,14 +338,14 @@
                         key={u.id}
                         type="button"
                         onClick={() => { setLoginUser(u.nombre); setLoginError(''); }}
-                        className={`py-2.5 px-3 rounded-xl border text-xs font-semibold transition flex flex-col items-center justify-center ${
+                        className={`py-3 px-3 rounded-xl border text-xs font-semibold transition flex flex-col items-center justify-center ${
                           loginUser === u.nombre
                             ? 'bg-purple-600/20 border-purple-500 text-purple-300 shadow-md'
                             : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                         }`}
                       >
-                        <span className="font-bold text-white">{u.nombre}</span>
-                        <span className="text-[9px] text-slate-400">{u.rol}</span>
+                        <span className="font-bold text-white text-sm">{u.nombre}</span>
+                        <span className="text-[10px] text-slate-400 mt-0.5">{u.rol}</span>
                       </button>
                     ))}
                   </div>
@@ -345,7 +392,7 @@
                 </div>
                 <div>
                   <h1 className="font-bold text-base text-white leading-tight">ICONNECTURE</h1>
-                  <p className="text-[10px] text-purple-400 font-medium">Gestión & Taller Pro</p>
+                  <p className="text-[10px] text-purple-400 font-medium">Servicio Técnico</p>
                 </div>
               </div>
 
@@ -355,7 +402,7 @@
                   { id: 'taller', label: 'Taller & Recepción', icon: 'fa-wrench' },
                   { id: 'reparaciones', label: 'Cargar Reparación', icon: 'fa-microchip' },
                   { id: 'garantias', label: 'Control Garantías', icon: 'fa-shield-halved' },
-                  { id: 'stock', label: 'Stock & Repuestos', icon: 'fa-boxes-stacked' },
+                  { id: 'stock', label: 'Stock Repuestos', icon: 'fa-boxes-stacked' },
                   { id: 'gastos', label: 'Gastos del Negocio', icon: 'fa-receipt' },
                   { id: 'medeben', label: 'Me Deben (Cuentas)', icon: 'fa-hand-holding-dollar' },
                   { id: 'comisiones', label: 'Comisiones Bruno', icon: 'fa-wallet' },
@@ -399,7 +446,7 @@
             </div>
           </aside>
 
-          {/* MAIN AREA */}
+          {/* ÁREA DE CONTENIDO */}
           <div className="flex-1 flex flex-col overflow-hidden">
             <header className="bg-slate-900 border-b border-slate-800 px-6 py-3 flex justify-between items-center text-xs">
               <div className="flex items-center gap-4">
@@ -433,7 +480,7 @@
                 <div className="space-y-6">
                   <header>
                     <h2 className="text-2xl font-bold text-white">Resumen General del Negocio</h2>
-                    <p className="text-slate-400 text-sm">Control financiero global y métricas operativas</p>
+                    <p className="text-slate-400 text-sm">Visión ejecutiva de ingresos, finanzas y estado del taller</p>
                   </header>
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -462,71 +509,208 @@
                 </div>
               )}
 
-              {/* TALLER */}
+              {/* TALLER Y RECEPCIÓN (CON FORMULARIO GREMIO SIMPLIFICADO) */}
               {vista === 'taller' && (
                 <div className="space-y-6">
                   <header>
                     <h2 className="text-2xl font-bold text-white">Recepción y Control de Taller</h2>
-                    <p className="text-slate-400 text-sm">Registro de ingresos de equipos</p>
+                    <p className="text-slate-400 text-sm">Registro de ingresos de equipos para Minorista y Gremio</p>
                   </header>
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* FORMULARIO DE INGRESO */}
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
                       <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                         <h3 className="text-base font-bold text-white">Nuevo Ingreso</h3>
                         <div className="flex gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                          <button type="button" onClick={() => setTipoReparacionIngreso('minorista')} className={`px-2 py-1 rounded-lg text-xs font-bold ${tipoReparacionIngreso === 'minorista' ? 'bg-purple-600 text-white' : 'text-slate-400'}`}>Minorista</button>
-                          <button type="button" onClick={() => setTipoReparacionIngreso('gremio')} className={`px-2 py-1 rounded-lg text-xs font-bold ${tipoReparacionIngreso === 'gremio' ? 'bg-purple-600 text-white' : 'text-slate-400'}`}>Gremio</button>
+                          <button type="button" onClick={() => setTipoReparacionIngreso('minorista')} className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${tipoReparacionIngreso === 'minorista' ? 'bg-purple-600 text-white' : 'text-slate-400'}`}>Minorista</button>
+                          <button type="button" onClick={() => setTipoReparacionIngreso('gremio')} className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${tipoReparacionIngreso === 'gremio' ? 'bg-purple-600 text-white' : 'text-slate-400'}`}>Gremio</button>
                         </div>
                       </div>
 
                       <form onSubmit={handleGuardarIngreso} className="space-y-3 text-xs">
+                        {tipoReparacionIngreso === 'minorista' ? (
+                          <>
+                            <div>
+                              <label className="block text-slate-400 mb-1">Nombre y Apellido del Cliente *</label>
+                              <input type="text" required value={formIngreso.cliente_nombre} onChange={e => setFormIngreso({...formIngreso, cliente_nombre: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" placeholder="Ej: Juan Pérez" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-slate-400 mb-1">Teléfono *</label>
+                                <input type="text" required value={formIngreso.cliente_telefono} onChange={e => setFormIngreso({...formIngreso, cliente_telefono: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" placeholder="341..." />
+                              </div>
+                              <div>
+                                <label className="block text-slate-400 mb-1">Teléfono Alt *</label>
+                                <input type="text" required value={formIngreso.cliente_telefono_alt} onChange={e => setFormIngreso({...formIngreso, cliente_telefono_alt: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" placeholder="Contacto extra" />
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="bg-purple-950/20 border border-purple-900/40 rounded-xl p-3 space-y-2">
+                            <label className="block text-purple-300 font-semibold">Seleccionar Cliente Gremio</label>
+                            <select
+                              value={gremioSeleccionado}
+                              onChange={e => setGremioSeleccionado(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-bold"
+                            >
+                              {listaGremios.map((g, idx) => (
+                                <option key={idx} value={g}>{g}</option>
+                              ))}
+                              <option value="NUEVO">+ Agregar Nuevo Gremio...</option>
+                            </select>
+
+                            {gremioSeleccionado === 'NUEVO' && (
+                              <input
+                                type="text"
+                                required
+                                placeholder="Nombre del comercio / gremio..."
+                                value={nuevoGremioNombre}
+                                onChange={e => setNuevoGremioNombre(e.target.value)}
+                                className="w-full bg-slate-950 border border-purple-500 rounded-xl px-3 py-2 text-white mt-1"
+                              />
+                            )}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-slate-400 mb-1">Modelo de Equipo *</label>
+                            <input type="text" required value={formIngreso.equipo_modelo} onChange={e => setFormIngreso({...formIngreso, equipo_modelo: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" placeholder="Ej: iPhone 13 Pro" />
+                          </div>
+                          <div>
+                            <label className="block text-slate-400 mb-1">IMEI (15 dígitos)</label>
+                            <input type="text" value={formIngreso.imei_serie} onChange={e => setFormIngreso({...formIngreso, imei_serie: e.target.value})} className={`w-full bg-slate-950 border rounded-xl px-3 py-2 text-white ${formIngreso.imei_serie && !esImeiValido(formIngreso.imei_serie) ? 'border-rose-500' : 'border-slate-800'}`} placeholder="15 números" />
+                          </div>
+                        </div>
+
                         <div>
-                          <label className="block text-slate-400 mb-1">Cliente *</label>
-                          <input type="text" required value={formIngreso.cliente_nombre} onChange={e => setFormIngreso({...formIngreso, cliente_nombre: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
+                          <label className="block text-slate-400 mb-1">Prioridad</label>
+                          <select value={formIngreso.prioridad} onChange={e => setFormIngreso({...formIngreso, prioridad: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white">
+                            <option value="Baja">Baja</option>
+                            <option value="Moderada">Moderada</option>
+                            <option value="Alta">Alta</option>
+                          </select>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <input type="text" required placeholder="Teléfono" value={formIngreso.cliente_telefono} onChange={e => setFormIngreso({...formIngreso, cliente_telefono: e.target.value})} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
-                          <input type="text" required placeholder="Tel Alt" value={formIngreso.cliente_telefono_alt} onChange={e => setFormIngreso({...formIngreso, cliente_telefono_alt: e.target.value})} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
+
+                        <div>
+                          <label className="block text-slate-400 mb-1">Estado Físico / Check-in de Daños</label>
+                          <textarea rows="2" value={formIngreso.estado_fisico} onChange={e => setFormIngreso({...formIngreso, estado_fisico: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" placeholder="Apagado, cristal astillado..." />
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <input type="text" required placeholder="Modelo Equipo" value={formIngreso.equipo_modelo} onChange={e => setFormIngreso({...formIngreso, equipo_modelo: e.target.value})} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
-                          <input type="text" placeholder="IMEI (15 dígitos)" value={formIngreso.imei_serie} onChange={e => setFormIngreso({...formIngreso, imei_serie: e.target.value})} className={`bg-slate-950 border rounded-xl px-3 py-2 text-white ${formIngreso.imei_serie && !esImeiValido(formIngreso.imei_serie) ? 'border-rose-500' : 'border-slate-800'}`} />
+
+                        <div>
+                          <label className="block text-slate-400 mb-1">Falla Declarada</label>
+                          <textarea rows="2" value={formIngreso.falla_declarada} onChange={e => setFormIngreso({...formIngreso, falla_declarada: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" placeholder="No enciende, cambio de módulo..." />
                         </div>
-                        <textarea rows="2" placeholder="Estado Físico / Daños" value={formIngreso.estado_fisico} onChange={e => setFormIngreso({...formIngreso, estado_fisico: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
-                        <textarea rows="2" placeholder="Falla Declarada" value={formIngreso.falla_declarada} onChange={e => setFormIngreso({...formIngreso, falla_declarada: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
-                        <button type="submit" className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl transition">Ingresar a Taller</button>
+
+                        <button type="submit" className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-purple-950">
+                          Ingresar a Taller
+                        </button>
                       </form>
                     </div>
 
+                    {/* LISTADO DE EQUIPOS EN TALLER */}
                     <div className="lg:col-span-2 space-y-4">
-                      <h3 className="text-lg font-semibold text-white">Equipos Activos</h3>
-                      <div className="space-y-3">
-                        {ordenes.filter(o => o.estado !== 'Entregado').map(ord => (
-                          <div key={ord.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <span className="text-xs text-purple-400 font-mono">#ORD-{String(ord.id).slice(-4)}</span>
-                                <h4 className="font-bold text-white text-lg">{ord.equipo_modelo}</h4>
-                                <p className="text-xs text-slate-400">Cliente: {ord.cliente_nombre} ({ord.cliente_telefono})</p>
+                      <h3 className="text-lg font-semibold text-white">Equipos en Taller ({ordenes.filter(o => o.estado !== 'Entregado').length})</h3>
+                      {ordenes.filter(o => o.estado !== 'Entregado').length === 0 ? (
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center text-slate-500">
+                          No hay equipos actualmente en taller.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {ordenes.filter(o => o.estado !== 'Entregado').map(ord => (
+                            <div key={ord.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-purple-400 font-mono">#ORD-{String(ord.id).slice(-4)}</span>
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ord.tipo_cliente === 'gremio' ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-blue-950 text-blue-300 border border-blue-800'}`}>
+                                      {ord.tipo_cliente.toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <h4 className="font-bold text-white text-lg mt-1">{ord.equipo_modelo}</h4>
+                                  <p className="text-xs text-slate-400">Cliente: <strong className="text-slate-200">{ord.cliente_nombre}</strong> ({ord.cliente_telefono})</p>
+                                </div>
+                                <select value={ord.estado} onChange={e => setOrdenes(ordenes.map(o => o.id === ord.id ? { ...o, estado: e.target.value } : o))} className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1 text-xs text-white font-semibold">
+                                  <option value="Recibido">Recibido</option>
+                                  <option value="En Diagnóstico">En Diagnóstico</option>
+                                  <option value="Esperando Repuesto">Esperando Repuesto</option>
+                                  <option value="Listo para Entregar">Listo para Entregar</option>
+                                  <option value="Entregado">Entregado</option>
+                                </select>
                               </div>
-                              <select value={ord.estado} onChange={e => setOrdenes(ordenes.map(o => o.id === ord.id ? { ...o, estado: e.target.value } : o))} className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1 text-xs text-white font-semibold">
-                                <option value="Recibido">Recibido</option>
-                                <option value="En Diagnóstico">En Diagnóstico</option>
-                                <option value="Esperando Repuesto">Esperando Repuesto</option>
-                                <option value="Listo para Entregar">Listo para Entregar</option>
-                                <option value="Entregado">Entregado</option>
-                              </select>
+                              <div className="bg-slate-950 rounded-xl p-3 text-xs text-slate-300 space-y-1">
+                                <p><strong>Falla:</strong> {ord.falla_declarada}</p>
+                                <p><strong>Estado Físico:</strong> {ord.estado_fisico || 'Sin observaciones'}</p>
+                                <p><strong>IMEI:</strong> {ord.imei_serie || 'N/A'}</p>
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* STOCK DE REPUESTOS Y BATERÍAS */}
+              {/* CONTROL DE GARANTÍAS */}
+              {vista === 'garantias' && (
+                <div className="space-y-6">
+                  <header className="flex justify-between items-center">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">Control de Garantías Activadas</h2>
+                      <p className="text-slate-400 text-sm">Seguimiento en tiempo real por IMEI de equipos entregados</p>
+                    </div>
+                  </header>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 max-w-md">
+                    <input
+                      type="text"
+                      placeholder="Buscar por IMEI de 15 dígitos..."
+                      value={busquedaImeiGarantia}
+                      onChange={e => setBusquedaImeiGarantia(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {reparaciones.filter(r => r.estado_pago === 'Pagado')
+                      .filter(r => !busquedaImeiGarantia || (r.imei_serie && r.imei_serie.includes(busquedaImeiGarantia)))
+                      .length === 0 ? (
+                      <div className="col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center text-slate-500">
+                        No hay garantias registradas o coincidentes.
+                      </div>
+                    ) : (
+                      reparaciones.filter(r => r.estado_pago === 'Pagado')
+                        .filter(r => !busquedaImeiGarantia || (r.imei_serie && r.imei_serie.includes(busquedaImeiGarantia)))
+                        .map(r => {
+                          const entrega = new Date(r.fecha_pago || r.fecha_completado);
+                          const hoy = new Date();
+                          const diasPasados = Math.floor((hoy - entrega) / (1000 * 60 * 60 * 24));
+                          const restantes = r.garantia_dias - diasPasados;
+                          const estaVigente = restantes >= 0;
+
+                          return (
+                            <div key={r.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex justify-between items-center">
+                              <div className="space-y-1">
+                                <span className="text-[10px] text-purple-400 font-mono">IMEI: {r.imei_serie || 'N/A'}</span>
+                                <h4 className="font-bold text-white text-base">{r.equipo_modelo}</h4>
+                                <p className="text-xs text-slate-400">Cliente: {r.cliente_nombre}</p>
+                              </div>
+                              <div className="text-right">
+                                <span className={`text-sm font-bold ${estaVigente ? 'text-emerald-400' : 'text-rose-500'}`}>
+                                  {estaVigente ? `${restantes} Días Restantes` : 'Garantía Finalizada'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* STOCK REPUESTOS */}
               {vista === 'stock' && (
                 <div className="space-y-6">
                   <header className="flex justify-between items-center">
@@ -580,20 +764,24 @@
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
-                          {stockRepuestos.map(s => (
-                            <tr key={s.id} className="hover:bg-slate-950/50">
-                              <td className="px-4 py-3 font-semibold text-purple-400">{s.categoria}</td>
-                              <td className="px-4 py-3 font-bold text-white">{s.modelo}</td>
-                              <td className="px-4 py-3 font-mono">{s.cantidad} u.</td>
-                              <td className="px-4 py-3 font-mono">{fmtMoney(s.costo_unitario_usd)}</td>
-                              <td className="px-4 py-3 font-mono font-bold text-emerald-400">{fmtMoney(s.cantidad * s.costo_unitario_usd)}</td>
-                              <td className="px-4 py-3">
-                                <button onClick={() => setStockRepuestos(stockRepuestos.filter(x => x.id !== s.id))} className="text-rose-400 hover:text-rose-300">
-                                  <i className="fa-solid fa-trash"></i>
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
+                          {stockRepuestos.length === 0 ? (
+                            <tr><td colSpan="6" className="px-4 py-6 text-center text-slate-500">Sin stock registrado.</td></tr>
+                          ) : (
+                            stockRepuestos.map(s => (
+                              <tr key={s.id} className="hover:bg-slate-950/50">
+                                <td className="px-4 py-3 font-semibold text-purple-400">{s.categoria}</td>
+                                <td className="px-4 py-3 font-bold text-white">{s.modelo}</td>
+                                <td className="px-4 py-3 font-mono">{s.cantidad} u.</td>
+                                <td className="px-4 py-3 font-mono">{fmtMoney(s.costo_unitario_usd)}</td>
+                                <td className="px-4 py-3 font-mono font-bold text-emerald-400">{fmtMoney(s.cantidad * s.costo_unitario_usd)}</td>
+                                <td className="px-4 py-3">
+                                  <button onClick={() => setStockRepuestos(stockRepuestos.filter(x => x.id !== s.id))} className="text-rose-400 hover:text-rose-300">
+                                    <i className="fa-solid fa-trash"></i>
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -601,63 +789,207 @@
                 </div>
               )}
 
-              {/* CARGAR REPARACIONES */}
-              {vista === 'reparaciones' && (
-                <div className="space-y-6">
-                  <header className="flex justify-between items-center">
-                    <div>
-                      <h2 className="text-2xl font-bold text-white">Carga de Reparaciones Realizadas</h2>
-                      <p className="text-slate-400 text-sm">Registro técnico de trabajos y cobro</p>
-                    </div>
-                    <button onClick={() => setModalCargarReparacion(true)} className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs">
-                      + Cargar Reparación
-                    </button>
+              {/* GASTOS DEL NEGOCIO */}
+              {vista === 'gastos' && (
+                <div className="space-y-6 max-w-4xl">
+                  <header>
+                    <h2 className="text-2xl font-bold text-white">Gastos del Negocio & Egresos</h2>
+                    <p className="text-slate-400 text-sm">Registro de compras de repuestos, insumos y fletes</p>
                   </header>
 
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                    <table className="w-full text-left text-xs text-slate-300">
-                      <thead className="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-800">
-                        <tr>
-                          <th className="px-4 py-3">Equipo / Cliente</th>
-                          <th className="px-4 py-3">Tipo</th>
-                          <th className="px-4 py-3">Mano de Obra</th>
-                          <th className="px-4 py-3">Total</th>
-                          <th className="px-4 py-3">Estado Pago</th>
-                          <th className="px-4 py-3">Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {reparaciones.map(r => (
-                          <tr key={r.id}>
-                            <td className="px-4 py-3"><strong>{r.equipo_modelo}</strong> ({r.cliente_nombre})</td>
-                            <td className="px-4 py-3 uppercase">{r.tipo_cliente}</td>
-                            <td className="px-4 py-3 font-mono text-emerald-400">{fmtMoney(r.mano_obra_usd)}</td>
-                            <td className="px-4 py-3 font-mono font-bold text-white">{fmtMoney(r.total_usd)}</td>
-                            <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded font-bold ${r.estado_pago === 'Pagado' ? 'bg-emerald-950 text-emerald-400' : 'bg-amber-950 text-amber-400'}`}>{r.estado_pago}</span></td>
-                            <td className="px-4 py-3">
-                              {r.estado_pago === 'Pendiente' && (
-                                <button onClick={() => marcarPagadoReparacion(r.id)} className="bg-emerald-600 text-white px-2.5 py-1 rounded text-[11px] font-bold">Marcar Pagado</button>
-                              )}
-                            </td>
-                          </tr>
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      const form = e.target;
+                      const concepto = form.concepto.value;
+                      const monto = parseFloat(form.monto.value) || 0;
+                      const mon = form.moneda.value;
+                      const cat = form.categoria.value;
+
+                      const montoUSD = mon === 'ARS' ? monto / cotizacionDolar : monto;
+                      setGastosNegocio([{ id: Date.now(), concepto, monto_usd: montoUSD, categoria: cat, fecha: new Date().toISOString() }, ...gastosNegocio]);
+                      form.reset();
+                    }} className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+                      <input type="text" name="concepto" required placeholder="Concepto (ej: Flete cadete)" className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
+                      <input type="number" step="any" name="monto" required placeholder="Monto" className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
+                      <select name="moneda" className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white">
+                        <option value="USD">USD ($)</option>
+                        <option value="ARS">ARS ($)</option>
+                      </select>
+                      <select name="categoria" className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white">
+                        <option value="Cadetería">Cadetería</option>
+                        <option value="Pantallas">Pantallas</option>
+                        <option value="Baterías">Baterías</option>
+                        <option value="Herramientas">Herramientas</option>
+                        <option value="Varios">Varios</option>
+                      </select>
+                      <button type="submit" className="md:col-span-4 bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-xl transition">
+                        Registrar Gasto
+                      </button>
+                    </form>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+                    <h3 className="text-base font-bold text-white">Historial de Gastos</h3>
+                    {gastosNegocio.length === 0 ? (
+                      <p className="text-xs text-slate-500 text-center py-4">No hay gastos registrados aún.</p>
+                    ) : (
+                      <div className="space-y-2 text-xs">
+                        {gastosNegocio.map(g => (
+                          <div key={g.id} className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex justify-between items-center">
+                            <div>
+                              <p className="font-bold text-white">{g.concepto}</p>
+                              <p className="text-[10px] text-slate-400">{g.categoria} | {new Date(g.fecha).toLocaleDateString()}</p>
+                            </div>
+                            <span className="font-mono text-rose-400 font-bold">{fmtMoney(g.monto_usd)}</span>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* GESTIÓN DE CUENTAS & CAMBIO DE CONTRASEÑA */}
-              {vista === 'cuentas' && (
+              {/* ME DEBEN (DEUDAS A FAVOR) */}
+              {vista === 'medeben' && (
                 <div className="space-y-6 max-w-4xl">
                   <header>
-                    <h2 className="text-2xl font-bold text-white">Gestión de Cuentas y Accesos</h2>
-                    <p className="text-slate-400 text-sm">Cambio de contraseña personal y lista de usuarios</p>
+                    <h2 className="text-2xl font-bold text-white">Cuentas a Favor ("Me Deben")</h2>
+                    <p className="text-slate-400 text-sm">Control de dinero pendiente de cobro</p>
+                  </header>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      const form = e.target;
+                      const deudor = form.deudor.value;
+                      const monto = parseFloat(form.monto.value) || 0;
+                      const mon = form.moneda.value;
+
+                      const montoUSD = mon === 'ARS' ? monto / cotizacionDolar : monto;
+                      setDeudasFavor([{ id: Date.now(), deudor, monto_usd: montoUSD, fecha: new Date().toISOString(), estado: 'Pendiente' }, ...deudasFavor]);
+                      form.reset();
+                    }} className="flex gap-3 text-xs">
+                      <input type="text" name="deudor" required placeholder="Nombre del deudor..." className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
+                      <input type="number" step="any" name="monto" required placeholder="Monto" className="w-32 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
+                      <select name="moneda" className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white">
+                        <option value="USD">USD</option>
+                        <option value="ARS">ARS</option>
+                      </select>
+                      <button type="submit" className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded-xl">Agregar Deuda</button>
+                    </form>
+
+                    <div className="space-y-2 text-xs pt-4 border-t border-slate-800">
+                      {deudasFavor.length === 0 ? (
+                        <p className="text-xs text-slate-500 text-center py-4">No hay deudas registradas.</p>
+                      ) : (
+                        deudasFavor.map(d => (
+                          <div key={d.id} className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex justify-between items-center">
+                            <div>
+                              <p className="font-bold text-white">{d.deudor}</p>
+                              <p className="text-[10px] text-slate-500">{new Date(d.fecha).toLocaleDateString()}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="font-mono text-emerald-400 font-bold">{fmtMoney(d.monto_usd)}</span>
+                              {d.estado === 'Pendiente' && (
+                                <button onClick={() => setDeudasFavor(deudasFavor.map(x => x.id === d.id ? { ...x, estado: 'Cobrado' } : x))} className="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold">Saldar</button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* COMISIONES BRUNO */}
+              {vista === 'comisiones' && (
+                <div className="space-y-6 max-w-3xl">
+                  <header>
+                    <h2 className="text-2xl font-bold text-white">Cuenta Corriente & Comisiones Bruno</h2>
+                    <p className="text-slate-400 text-sm">Liquidación de mano de obra (100% Gremio / 50% Minorista)</p>
+                  </header>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+                      <div>
+                        <p className="text-xs text-slate-400">Saldo a Cobrar por Bruno</p>
+                        <h3 className={`text-3xl font-black ${comisionesCalculadas.saldoFinal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {fmtMoney(comisionesCalculadas.saldoFinal)}
+                        </h3>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const monto = prompt('Ingresá el monto entregado/liquidado a Bruno (en USD):');
+                          if (monto && !isNaN(monto)) {
+                            setComisionesPagos([{ id: Date.now(), monto_usd: parseFloat(monto), fecha: new Date().toISOString() }, ...comisionesPagos]);
+                          }
+                        }}
+                        className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs"
+                      >
+                        Registrar Entrega de Efectivo
+                      </button>
+                    </div>
+
+                    <h4 className="text-sm font-bold text-white">Historial de Entregas</h4>
+                    {comisionesPagos.length === 0 ? (
+                      <p className="text-xs text-slate-500 text-center py-4">No hay pagos de comisiones registrados aún.</p>
+                    ) : (
+                      <div className="space-y-2 text-xs">
+                        {comisionesPagos.map(p => (
+                          <div key={p.id} className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex justify-between items-center">
+                            <p className="font-bold text-white">Entrega / Retiro Efectivo ({new Date(p.fecha).toLocaleDateString()})</p>
+                            <span className="font-mono text-purple-400 font-bold">-{fmtMoney(p.monto_usd)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* SOCIOS Y REPARTO */}
+              {vista === 'socios' && (
+                <div className="space-y-6 max-w-4xl">
+                  <header>
+                    <h2 className="text-2xl font-bold text-white">Configuración de Socios y Reparto</h2>
+                    <p className="text-slate-400 text-sm">Distribución pactada de ganancias del taller</p>
                   </header>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
-                      <h3 className="text-base font-bold text-white">Cuentas del Sistema</h3>
+                      <h3 className="font-bold text-white text-lg">Bruno</h3>
+                      <p className="text-xs text-purple-400 font-semibold">Administrador / Técnico Único</p>
+                      <ul className="text-xs text-slate-300 space-y-1 list-disc list-inside pt-2 border-t border-slate-800">
+                        <li>100% Ganancia Neta en Reparaciones Gremio</li>
+                        <li>50% Ganancia Neta en Reparaciones Minoristas</li>
+                      </ul>
+                    </div>
+
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+                      <h3 className="font-bold text-white text-lg">Mateo</h3>
+                      <p className="text-xs text-blue-400 font-semibold">Socio Comercial</p>
+                      <ul className="text-xs text-slate-300 space-y-1 list-disc list-inside pt-2 border-t border-slate-800">
+                        <li>0% Ganancia en Reparaciones Gremio</li>
+                        <li>50% Ganancia Neta en Reparaciones Minoristas</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* GESTIÓN DE CUENTAS (CON LOS 4 USUARIOS) */}
+              {vista === 'cuentas' && (
+                <div className="space-y-6 max-w-4xl">
+                  <header>
+                    <h2 className="text-2xl font-bold text-white">Gestión de Cuentas y Accesos</h2>
+                    <p className="text-slate-400 text-sm">Cambio de contraseña y estado de usuarios</p>
+                  </header>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+                      <h3 className="text-base font-bold text-white">Cuentas del Sistema ({usuarios.length})</h3>
                       <div className="space-y-2 text-xs">
                         {usuarios.map(u => (
                           <div key={u.id} className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex justify-between items-center">
@@ -672,7 +1004,7 @@
                     </div>
 
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-                      <h3 className="text-base font-bold text-white">Cambiar mi Contraseña ({usuarioSesion.nombre})</h3>
+                      <h3 className="text-base font-bold text-white">Cambiar Mi Contraseña ({usuarioSesion.nombre})</h3>
                       <form onSubmit={cambiarPasswordUsuario} className="space-y-3 text-xs">
                         <div>
                           <label className="block text-slate-400 mb-1">Contraseña Actual</label>
@@ -692,19 +1024,106 @@
                 </div>
               )}
 
-              {/* PATRIMONIO DE BRUNO (CON SALDO BANCO, FOTO DE GASTOS FIJOS Y CAMBIO DE PIN) */}
+              {/* ESTADÍSTICAS GLOBALES */}
+              {vista === 'estadisticas' && (
+                <div className="space-y-6">
+                  <header>
+                    <h2 className="text-2xl font-bold text-white">Analytics y Estadísticas Globales</h2>
+                    <p className="text-slate-400 text-sm">Resumen numérico y porcentaje unificado</p>
+                  </header>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2">
+                      <p className="text-xs text-slate-400">Total Reparaciones Pagadas</p>
+                      <h3 className="text-3xl font-black text-white">{reparaciones.filter(r => r.estado_pago === 'Pagado').length}</h3>
+                    </div>
+
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2">
+                      <p className="text-xs text-slate-400">Reparaciones por Cliente</p>
+                      <div className="flex gap-2 font-mono text-xs font-bold pt-1">
+                        <span className="text-amber-400">Gremio: {reparaciones.filter(r => r.tipo_cliente === 'gremio').length}</span>
+                        <span className="text-blue-400">Minorista: {reparaciones.filter(r => r.tipo_cliente === 'minorista').length}</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2">
+                      <p className="text-xs text-slate-400">Facturación Bruta Total</p>
+                      <h3 className="text-2xl font-black text-emerald-400">{fmtMoney(reparaciones.filter(r => r.estado_pago === 'Pagado').reduce((acc, r) => acc + r.total_usd, 0))}</h3>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* REGISTRO DE ACTIVIDAD */}
+              {vista === 'actividad' && (
+                <div className="space-y-6">
+                  <header>
+                    <h2 className="text-2xl font-bold text-white">Registro de Actividad (Auditoría)</h2>
+                    <p className="text-slate-400 text-sm">Historial inalterable de auditoría</p>
+                  </header>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-wrap gap-4 text-xs">
+                    <div>
+                      <label className="block text-slate-400 mb-1">Filtrar por Usuario</label>
+                      <select value={filtroUsuarioLog} onChange={e => setFiltroUsuarioLog(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white">
+                        <option value="todos">Todos los usuarios</option>
+                        <option value="Bruno">Bruno</option>
+                        <option value="Mateo">Mateo</option>
+                        <option value="Yaco">Yaco</option>
+                        <option value="Priscila">Priscila</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 mb-1">Día Específico</label>
+                      <input type="date" value={filtroFechaLogDia} onChange={e => setFiltroFechaLogDia(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                    <table className="w-full text-left text-xs text-slate-300">
+                      <thead className="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-800">
+                        <tr>
+                          <th className="px-4 py-3">Fecha y Hora</th>
+                          <th className="px-4 py-3">Usuario</th>
+                          <th className="px-4 py-3">Módulo</th>
+                          <th className="px-4 py-3">Acción</th>
+                          <th className="px-4 py-3">Detalle</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800">
+                        {logs.length === 0 ? (
+                          <tr><td colSpan="5" className="px-4 py-6 text-center text-slate-500">Sin actividad registrada.</td></tr>
+                        ) : (
+                          logs
+                            .filter(l => filtroUsuarioLog === 'todos' || l.usuario === filtroUsuarioLog)
+                            .filter(l => !filtroFechaLogDia || l.fecha.startsWith(filtroFechaLogDia))
+                            .map(l => (
+                              <tr key={l.id} className="hover:bg-slate-950/50">
+                                <td className="px-4 py-3 font-mono text-slate-500">{new Date(l.fecha).toLocaleString()}</td>
+                                <td className="px-4 py-3 font-bold text-purple-300">{l.usuario}</td>
+                                <td className="px-4 py-3 font-semibold text-slate-200">{l.modulo}</td>
+                                <td className="px-4 py-3 text-purple-400">{l.accion}</td>
+                                <td className="px-4 py-3 text-slate-300">{l.detalles}</td>
+                              </tr>
+                            ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* PATRIMONIO DE BRUNO */}
               {vista === 'patrimonio' && (
                 <div className="space-y-6 max-w-4xl">
                   <header>
                     <h2 className="text-2xl font-bold text-white">Patrimonio Personal de Bruno 🔒</h2>
-                    <p className="text-slate-400 text-sm">Control absoluto de saldo inicial, bancos, gastos fijos/cuotas y PIN de seguridad</p>
+                    <p className="text-slate-400 text-sm">Control privado de saldo inicial, bancos y gastos fijos</p>
                   </header>
 
                   {!patrimonioDesbloqueado ? (
                     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md mx-auto text-center space-y-4">
-                      <div className="w-16 h-16 rounded-2xl bg-purple-950 border border-purple-500/50 flex items-center justify-center text-purple-400 text-2xl mx-auto">
-                        <i className="fa-solid fa-lock"></i>
-                      </div>
                       <h3 className="text-lg font-bold text-white">Ingresá tu PIN Secreto (6 dígitos)</h3>
                       <input
                         type="password"
@@ -723,100 +1142,50 @@
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      {/* RESUMEN PATRIMONIAL */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-1">
                           <p className="text-xs text-slate-400">Saldo Inicial / Bancos / Caja</p>
                           <div className="flex items-center justify-between">
                             <h3 className="text-2xl font-black text-white">{fmtMoney(saldoInicialBruno)}</h3>
                             <button onClick={() => {
-                              const val = prompt('Ingresá tu dinero actual en banco/efectivo (en USD):', saldoInicialBruno);
+                              const val = prompt('Ingresá tu dinero actual en banco/efectivo (USD):', saldoInicialBruno);
                               if (val !== null && !isNaN(val)) setSaldoInicialBruno(parseFloat(val));
                             }} className="text-purple-400 text-xs hover:underline">Editar</button>
                           </div>
                         </div>
 
                         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-1">
-                          <p className="text-xs text-slate-400">Total Dinero Líquido Limpio</p>
+                          <p className="text-xs text-slate-400">Dinero Líquido Disponible</p>
                           <h3 className="text-2xl font-black text-emerald-400">
                             {fmtMoney(saldoInicialBruno + comisionesCalculadas.totalHistoricoGanado - gastosPersonales.reduce((acc, g) => acc + g.monto_usd, 0) - totalGastosFijosMensuales)}
                           </h3>
                         </div>
 
                         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-1">
-                          <p className="text-xs text-slate-400">Gastos Fijos y Cuotas (Mensual)</p>
+                          <p className="text-xs text-slate-400">Gastos Fijos Mensuales</p>
                           <h3 className="text-2xl font-black text-rose-400">{fmtMoney(totalGastosFijosMensuales)}</h3>
                         </div>
                       </div>
 
-                      {/* GASTOS FIJOS Y EN CUOTAS */}
-                      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-                        <h3 className="text-base font-bold text-white">Gastos Fijos y Cuotas Recurrentes (Gimnasio, Cuotas, etc.)</h3>
-                        <form onSubmit={(e) => {
-                          e.preventDefault();
-                          const form = e.target;
-                          const conc = form.concepto.value;
-                          const monto = parseFloat(form.monto.value) || 0;
-                          const mon = form.moneda.value;
-                          const esCuota = form.esCuota.checked;
-                          const cuotasTot = parseInt(form.cuotasTot.value) || 1;
-
-                          const montoUSD = mon === 'ARS' ? monto / cotizacionDolar : monto;
-                          setGastosFijos([{ id: Date.now(), concepto: conc, monto_usd: montoUSD, esCuota, cuotasTotales: cuotasTot, cuotasPagadas: 0 }, ...gastosFijos]);
-                          form.reset();
-                        }} className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
-                          <input type="text" name="concepto" required placeholder="Ej: Gimnasio, Creatina..." className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
-                          <input type="number" step="any" name="monto" required placeholder="Monto mensual" className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
-                          <select name="moneda" className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white">
-                            <option value="USD">USD</option>
-                            <option value="ARS">ARS</option>
-                          </select>
-                          <div className="flex items-center gap-2 text-slate-300">
-                            <input type="checkbox" name="esCuota" id="chkCuota" />
-                            <label htmlFor="chkCuota">¿Es en Cuotas?</label>
-                          </div>
-                          <input type="number" name="cuotasTot" placeholder="Cant. Cuotas" defaultValue="1" className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white" />
-                          <button type="submit" className="md:col-span-5 bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 rounded-xl">Agregar Gasto Fijo</button>
-                        </form>
-
-                        <div className="space-y-2 text-xs">
-                          {gastosFijos.map(gf => (
-                            <div key={gf.id} className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex justify-between items-center">
-                              <div>
-                                <p className="font-bold text-white">{gf.concepto}</p>
-                                {gf.esCuota && <p className="text-[10px] text-purple-400 font-mono">Plan de {gf.cuotasTotales} cuotas</p>}
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="font-mono text-rose-400 font-bold">{fmtMoney(gf.monto_usd)}/mes</span>
-                                <button onClick={() => setGastosFijos(gastosFijos.filter(x => x.id !== gf.id))} className="text-slate-500 hover:text-rose-400">
-                                  <i className="fa-solid fa-trash"></i>
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* CAMBIAR PIN PATRIMONIO */}
                       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
-                        <h3 className="text-base font-bold text-white">Cambiar PIN Secreto de 6 Dígitos</h3>
+                        <h3 className="text-base font-bold text-white">Cambiar PIN Secreto (6 Dígitos)</h3>
                         <div className="flex gap-3 text-xs max-w-md">
                           <input
                             type="password"
                             maxLength="6"
-                            placeholder="Nuevo PIN 6 dígitos..."
+                            placeholder="Nuevo PIN..."
                             value={nuevoPinInput}
                             onChange={e => setNuevoPinInput(e.target.value)}
-                            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono text-center"
+                            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-center font-mono"
                           />
                           <button
                             onClick={() => {
                               if (nuevoPinInput.length === 6 && !isNaN(nuevoPinInput)) {
                                 setPinPatrimonio(nuevoPinInput);
                                 setNuevoPinInput('');
-                                alert('✅ PIN actualizado correctamente.');
+                                alert('✅ PIN actualizado.');
                               } else {
-                                alert('El PIN debe tener exactamente 6 números.');
+                                alert('Debe tener 6 números.');
                               }
                             }}
                             className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded-xl"
@@ -843,37 +1212,6 @@
                   <button onClick={() => { if (nuevaCotizacionInput) { setCotizacionDolar(parseFloat(nuevaCotizacionInput)); setModalDolar(false); setNuevaCotizacionInput(''); } }} className="flex-1 bg-purple-600 text-white font-bold py-2 rounded-xl text-xs">Guardar</button>
                   <button onClick={() => setModalDolar(false)} className="bg-slate-800 text-slate-300 font-bold px-4 py-2 rounded-xl text-xs">Cancelar</button>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* MODAL CARGAR REPARACIÓN */}
-          {modalCargarReparacion && (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-lg w-full space-y-4 max-h-[90vh] overflow-y-auto text-xs">
-                <h3 className="font-bold text-white text-lg border-b border-slate-800 pb-2">Cargar Reparación Realizada</h3>
-                <div>
-                  <label className="block text-slate-400 mb-1">Seleccionar Equipo en Taller</label>
-                  <select onChange={e => setEquipoSeleccionadoParaReparar(ordenes.find(o => o.id === parseInt(e.target.value)))} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white">
-                    <option value="">-- Elegir Equipo --</option>
-                    {ordenes.filter(o => o.estado !== 'Entregado').map(o => (
-                      <option key={o.id} value={o.id}>{o.equipo_modelo} - {o.cliente_nombre}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {equipoSeleccionadoParaReparar && (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-slate-400 mb-1">Mano de Obra (Ganancia Neta)</label>
-                      <input type="number" value={manoObraInput} onChange={e => setManoObraInput(e.target.value)} placeholder="0.00" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono" />
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={handleConfirmarReparacion} className="flex-1 bg-purple-600 text-white font-bold py-2.5 rounded-xl">Confirmar Reparación</button>
-                      <button onClick={() => setModalCargarReparacion(false)} className="bg-slate-800 text-slate-300 font-bold px-4 py-2.5 rounded-xl">Cancelar</button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}

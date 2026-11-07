@@ -67,6 +67,9 @@
       }
     } catch (err) { console.error("Error DB:", err); }
 
+    // =========================================================================
+    // 3. CONSTANTES Y FUNCIONES DE SEGURIDAD
+    // =========================================================================
     const USUARIOS_DEFAULT = [
       { id: '1', nombre: 'Bruno', pass: 'bruno123', rol: 'Administrador / Técnico' },
       { id: '2', nombre: 'Mateo', pass: 'mateo123', rol: 'Socio' },
@@ -105,7 +108,7 @@
       const [isLoaded, setIsLoaded] = useState(false);
       const [syncStatus, setSyncStatus] = useState('Conectando a la nube...');
 
-      // ESTADOS GLOBALES
+      // ESTADOS GLOBALES DE LA BASE DE DATOS
       const [usuarios, setUsuarios] = useState([]);
       const [ordenes, setOrdenes] = useState([]);
       const [reparaciones, setReparaciones] = useState([]);
@@ -122,6 +125,7 @@
       const [pinPatrimonio, setPinPatrimonio] = useState('123456');
       const [saldoInicialBruno, setSaldoInicialBruno] = useState(0);
       
+      // ESTADOS DE SESIÓN E INTERFAZ
       const [usuarioSesion, setUsuarioSesion] = useState(null);
       const [loginUser, setLoginUser] = useState('Bruno');
       const [loginPass, setLoginPass] = useState('');
@@ -129,22 +133,31 @@
       const [modoOculto, setModoOculto] = useState(false);
       const [vista, setVista] = useState('dashboard');
 
+      // ESTADOS DE PATRIMONIO PRIVADO
       const [patrimonioDesbloqueado, setPatrimonioDesbloqueado] = useState(false);
       const [pinInput, setPinInput] = useState('');
       const [nuevoPinInput, setNuevoPinInput] = useState('');
-      const [pinErrorMsg, setPinErrorMsg] = useState(''); // ERROR SOLUCIONADO ACÁ
+      const [pinErrorMsg, setPinErrorMsg] = useState('');
       
+      // ESTADOS DE FORMULARIOS GLOBALES
       const [modalDolar, setModalDolar] = useState(false);
       const [nuevaCotizacionInput, setNuevaCotizacionInput] = useState('');
       const [modalEditarSaldoBruno, setModalEditarSaldoBruno] = useState(false);
       const [formSaldoBruno, setFormSaldoBruno] = useState({ modo: 'establecer', monto: '', moneda: 'ARS' });
 
+      // ESTADOS DE INGRESO TALLER
       const [tipoReparacionIngreso, setTipoReparacionIngreso] = useState('minorista');
       const [gremioSeleccionado, setGremioSeleccionado] = useState('ICONNECTURE');
       const [nuevoGremioNombre, setNuevoGremioNombre] = useState('');
-      const [formIngreso, setFormIngreso] = useState({ cliente_nombre: '', cliente_telefono: '', cliente_telefono_alt: '', cliente_email: '', origen_cliente: 'Nuevo', equipo_modelo: '', imei_serie: '', prioridad: 'Moderada', falla_declarada: '', presupuesto_estimado: '', moneda_presupuesto: 'ARS', estado_fisico: '', tuvo_reparacion_previa: 'no', detalle_reparacion_previa: '', taller_previo: '', fecha_previa: '' });
+      const [formIngreso, setFormIngreso] = useState({ 
+        cliente_nombre: '', cliente_telefono: '', cliente_telefono_alt: '', cliente_email: '', 
+        origen_cliente: 'Nuevo', equipo_modelo: '', imei_serie: '', prioridad: 'Moderada', 
+        falla_declarada: '', presupuesto_estimado: '', moneda_presupuesto: 'ARS', estado_fisico: '', 
+        tuvo_reparacion_previa: 'no', detalle_reparacion_previa: '', taller_previo: '', fecha_previa: '' 
+      });
       const [reciboModal, setReciboModal] = useState(null);
 
+      // ESTADOS DE CARGAR REPARACIÓN
       const [modalCargarReparacion, setModalCargarReparacion] = useState(false);
       const [equipoSeleccionadoParaReparar, setEquipoSeleccionadoParaReparar] = useState(null);
       const [itemsRepuestosCarga, setItemsRepuestosCarga] = useState([{ tipo: 'stock', stockId: '', nombreManual: '', costoManual: '', monedaManual: 'USD' }]);
@@ -154,17 +167,26 @@
       const [garantiaDiasInput, setGarantiaDiasInput] = useState('30');
       const [estadoPagoInicialCarga, setEstadoPagoInicialCarga] = useState('Pendiente');
 
+      // ESTADOS DE STOCK Y EDICIÓN
       const [formNuevoStock, setFormNuevoStock] = useState({ categoria: 'Batería', modelo: '', cantidad: '', costo: '', moneda: 'USD' });
       const [modalEditStock, setModalEditStock] = useState(null);
       
+      // ESTADOS GASTOS NEGOCIO
       const [formGastoNegocio, setFormGastoNegocio] = useState({ concepto: '', proveedor: '', monto: '', moneda: 'ARS', categoria: 'Cadetería', medio_pago: 'Efectivo ARS', estado: 'Pagado' });
+      
+      // ESTADOS ME DEBEN
       const [formDeudaFavor, setFormDeudaFavor] = useState({ deudor: '', motivo: '', telefono: '', monto: '', moneda: 'ARS' });
       const [modalPagoParcialDeuda, setModalPagoParcialDeuda] = useState(null);
       const [formAbonoDeuda, setFormAbonoDeuda] = useState({ monto: '', moneda: 'ARS' });
+      
+      // ESTADOS COMISIONES
       const [formPagoComision, setFormPagoComision] = useState({ monto: '', moneda: 'ARS', medio_pago: 'Efectivo ARS', nota: '' });
+      
+      // ESTADOS GASTOS PERSONALES / FIJOS
       const [formGastoPersonal, setFormGastoPersonal] = useState({ desc: '', categoria: 'Gimnasio / Entrenamiento', monto: '', moneda: 'ARS' });
       const [formGastoFijo, setFormGastoFijo] = useState({ concepto: '', monto: '', moneda: 'ARS', tipo: 'fijo', cuotasTotales: '3' });
 
+      // ESTADOS DE BUSCADORES Y FILTROS EN TIEMPO REAL
       const [busquedaTaller, setBusquedaTaller] = useState('');
       const [busquedaReparaciones, setBusquedaReparaciones] = useState('');
       const [busquedaStock, setBusquedaStock] = useState('');
@@ -179,50 +201,100 @@
       const [queryDash, setQueryDash] = useState('');
       const [resDash, setResDash] = useState('');
 
+      // =========================================================================
+      // LÓGICA DE INICIALIZACIÓN (MIGRACIÓN & CLOUD EXTREMADAMENTE SEGURA)
+      // =========================================================================
       const aplicarDatos = (p) => {
         setUsuarios(safeArray(p.usuarios).length ? p.usuarios : USUARIOS_DEFAULT);
-        setOrdenes(safeArray(p.ordenes)); setReparaciones(safeArray(p.reparaciones)); setStockRepuestos(safeArray(p.stockRepuestos));
-        setGastosNegocio(safeArray(p.gastosNegocio)); setDeudasFavor(safeArray(p.deudasFavor)); setComisionesPagos(safeArray(p.comisionesPagos));
-        setGastosPersonales(safeArray(p.gastosPersonales)); setGastosFijos(safeArray(p.gastosFijos)); setLogs(safeArray(p.logs));
+        setOrdenes(safeArray(p.ordenes));
+        setReparaciones(safeArray(p.reparaciones));
+        setStockRepuestos(safeArray(p.stockRepuestos));
+        setGastosNegocio(safeArray(p.gastosNegocio));
+        setDeudasFavor(safeArray(p.deudasFavor));
+        setComisionesPagos(safeArray(p.comisionesPagos));
+        setGastosPersonales(safeArray(p.gastosPersonales));
+        setGastosFijos(safeArray(p.gastosFijos));
+        setLogs(safeArray(p.logs));
         setListaGremios(safeArray(p.listaGremios).length ? p.listaGremios : GREMIOS_DEFAULT);
-        setCotizacionDolar(parseFloat(p.cotizacionDolar) || 1450); setPinPatrimonio(p.pinPatrimonio || '123456');
-        setSaldoInicialBruno(parseFloat(p.saldoInicialBruno) || 0); setFechaUltimaCotizacion(p.fechaUltimaCotizacion || new Date().toISOString());
+        setCotizacionDolar(parseFloat(p.cotizacionDolar) || 1450);
+        setPinPatrimonio(p.pinPatrimonio || '123456');
+        setSaldoInicialBruno(parseFloat(p.saldoInicialBruno) || 0);
+        setFechaUltimaCotizacion(p.fechaUltimaCotizacion || new Date().toISOString());
       };
 
       const loadFromLocalFallback = () => {
         setSyncStatus('Modo Offline: Cargando local...');
         aplicarDatos({
-          usuarios: loadStorage('ic_usuarios', USUARIOS_DEFAULT), ordenes: loadStorage('ic_ordenes', []), reparaciones: loadStorage('ic_reparaciones', []),
-          stockRepuestos: loadStorage('ic_stock_repuestos', []), gastosNegocio: loadStorage('ic_gastos_negocio', []), deudasFavor: loadStorage('ic_deudas_favor', []),
-          comisionesPagos: loadStorage('ic_comisiones_pagos', []), gastosPersonales: loadStorage('ic_gastos_personales', []), gastosFijos: loadStorage('ic_gastos_fijos', []),
-          logs: loadStorage('ic_logs', []), listaGremios: loadStorage('ic_lista_gremios', GREMIOS_DEFAULT),
-          cotizacionDolar: localStorage.getItem('ic_cotizacion_dolar'), pinPatrimonio: localStorage.getItem('ic_pin_patrimonio'),
-          saldoInicialBruno: localStorage.getItem('ic_saldo_inicial_bruno'), fechaUltimaCotizacion: localStorage.getItem('ic_fecha_cotizacion')
+          usuarios: loadStorage('ic_usuarios', USUARIOS_DEFAULT),
+          ordenes: loadStorage('ic_ordenes', []),
+          reparaciones: loadStorage('ic_reparaciones', []),
+          stockRepuestos: loadStorage('ic_stock_repuestos', []),
+          gastosNegocio: loadStorage('ic_gastos_negocio', []),
+          deudasFavor: loadStorage('ic_deudas_favor', []),
+          comisionesPagos: loadStorage('ic_comisiones_pagos', []),
+          gastosPersonales: loadStorage('ic_gastos_personales', []),
+          gastosFijos: loadStorage('ic_gastos_fijos', []),
+          logs: loadStorage('ic_logs', []),
+          listaGremios: loadStorage('ic_lista_gremios', GREMIOS_DEFAULT),
+          cotizacionDolar: localStorage.getItem('ic_cotizacion_dolar'),
+          pinPatrimonio: localStorage.getItem('ic_pin_patrimonio'),
+          saldoInicialBruno: localStorage.getItem('ic_saldo_inicial_bruno'),
+          fechaUltimaCotizacion: localStorage.getItem('ic_fecha_cotizacion')
         });
       };
 
       useEffect(() => {
         async function initApp() {
-          if (!supabase) { loadFromLocalFallback(); setTimeout(() => setIsLoaded(true), 600); return; }
+          if (!supabase) {
+            loadFromLocalFallback();
+            setTimeout(() => setIsLoaded(true), 600);
+            return;
+          }
+
           try {
             setSyncStatus('Sincronizando...');
             const { data, error } = await supabase.from('iconnecture_data').select('payload').eq('id', 1).single();
             if (error) throw error;
-            if (data && data.payload && Object.keys(data.payload).length > 0) { aplicarDatos(data.payload); setSyncStatus('¡Conexión Exitosa!'); } 
-            else { setSyncStatus('Nube vacía. Migrando...'); loadFromLocalFallback(); }
-          } catch (err) { console.error("Error al conectar:", err); loadFromLocalFallback(); }
+
+            if (data && data.payload && Object.keys(data.payload).length > 0) {
+              aplicarDatos(data.payload);
+              setSyncStatus('¡Conexión Exitosa!');
+            } else {
+              setSyncStatus('Nube vacía. Migrando...');
+              loadFromLocalFallback();
+            }
+          } catch (err) {
+            console.error("Error al conectar con Supabase:", err);
+            loadFromLocalFallback();
+          }
           setTimeout(() => setIsLoaded(true), 600);
         }
         initApp();
       }, []);
 
+      // MOTOR DE SINCRONIZACIÓN AUTOMÁTICA
       useEffect(() => {
         if (!isLoaded) return;
-        const payload = { usuarios, ordenes, reparaciones, stockRepuestos, gastosNegocio, deudasFavor, comisionesPagos, gastosPersonales, gastosFijos, logs, listaGremios, cotizacionDolar, pinPatrimonio, saldoInicialBruno, fechaUltimaCotizacion };
+        const payload = { 
+          usuarios, ordenes, reparaciones, stockRepuestos, gastosNegocio, 
+          deudasFavor, comisionesPagos, gastosPersonales, gastosFijos, 
+          logs, listaGremios, cotizacionDolar, pinPatrimonio, saldoInicialBruno,
+          fechaUltimaCotizacion
+        };
+        
         localStorage.setItem('ic_master_backup', JSON.stringify(payload));
-        if (supabase) supabase.from('iconnecture_data').update({ payload }).eq('id', 1).then(()=>{});
+        
+        if (supabase) {
+          supabase.from('iconnecture_data').update({ payload }).eq('id', 1).then(({error}) => {
+            if (error) console.error("Error sincronizando:", error);
+          });
+        }
       }, [isLoaded, usuarios, ordenes, reparaciones, stockRepuestos, gastosNegocio, deudasFavor, comisionesPagos, gastosPersonales, gastosFijos, logs, listaGremios, cotizacionDolar, pinPatrimonio, saldoInicialBruno, fechaUltimaCotizacion]);
 
+
+      // =========================================================================
+      // UTILIDADES Y FUNCIONES DEL NEGOCIO
+      // =========================================================================
       const registrarLog = (modulo, accion, detalles) => {
         const nuevo = { id: Date.now() + Math.floor(Math.random()*1000), usuario: usuarioSesion ? usuarioSesion.nombre : 'Sistema', modulo, accion, detalles, fecha: new Date().toISOString() };
         setLogs(prev => [nuevo, ...safeArray(prev)]);
@@ -263,6 +335,8 @@
         return diffHoras >= 24;
       }, [fechaUltimaCotizacion]);
 
+
+      // CÁLCULOS CENTRALIZADOS DE RENTABILIDAD Y COMISIONES
       const comisionesCalculadas = useMemo(() => {
         let ganadoGremio = 0, ganadoMinoristaBruno = 0, ganadoMinoristaMateo = 0, brunoHoy = 0, brunoMes = 0;
         const hoyStr = new Date().toISOString().split('T')[0];
@@ -302,22 +376,22 @@
         return { demorados, deudasPend, ctasPagar, stockBajo, garantiasPorVencer, total: demorados.length + deudasPend.length + ctasPagar.length + stockBajo.length + garantiasPorVencer.length };
       }, [ordenes, deudasFavor, gastosNegocio, stockRepuestos, reparaciones]);
 
-      // FUNCIONES DE EVENTOS
+
+      // =========================================================================
+      // LÓGICA DE EVENTOS (SUBMITS Y BOTONES)
+      // =========================================================================
       const handleLogin = (e) => {
         e.preventDefault();
         const found = safeArray(usuarios).find(u => u.nombre === loginUser);
-        // CLAVE MAESTRA TEMPORAL AGREGADA (dev123) PARA QUE NO TE QUEDES AFUERA
-        if (found && (found.pass === loginPass || loginPass === 'dev123')) {
+        if (found && found.pass === loginPass) {
           setUsuarioSesion(found); setLoginError(''); setLoginPass('');
           registrarLog('Seguridad', 'Inicio Sesión', `Acceso de ${found.nombre}`);
-        } else { 
-          setLoginError('Contraseña incorrecta (Nota: Podés usar dev123 para entrar si olvidaste la clave tras el backup)'); 
-        }
+        } else { setLoginError('Contraseña incorrecta'); }
       };
 
       const cambiarPasswordUsuario = (e) => {
         e.preventDefault();
-        if (passActual !== usuarioSesion.pass && passActual !== 'dev123') {
+        if (passActual !== usuarioSesion.pass) {
           setMsgPass('❌ Contraseña actual incorrecta.');
           return;
         }
@@ -348,8 +422,16 @@
           } else { nom = `Gremio: ${gremioSeleccionado}`; }
           tel = 'Gremio';
         }
+
         const pres = congelarMonto(formIngreso.presupuesto_estimado, formIngreso.moneda_presupuesto);
-        const nueva = { id: Date.now(), tipo_cliente: tipoReparacionIngreso, cliente_nombre: nom, cliente_telefono: tel, cliente_telefono_alt: tipoReparacionIngreso === 'minorista' ? formIngreso.cliente_telefono_alt : 'N/A', equipo_modelo: formIngreso.equipo_modelo, imei_serie: formIngreso.imei_serie, prioridad: formIngreso.prioridad, falla_declarada: formIngreso.falla_declarada, presupuesto_usd: pres.monto_usd, moneda_original: pres.moneda_original, monto_original: pres.monto_original, cotizacion_historica: pres.cotizacion_historica, estado_fisico: formIngreso.estado_fisico, estado: 'Recibido', fecha_ingreso: new Date().toISOString() };
+        const nueva = {
+          id: Date.now(), tipo_cliente: tipoReparacionIngreso, cliente_nombre: nom, cliente_telefono: tel,
+          cliente_telefono_alt: tipoReparacionIngreso === 'minorista' ? formIngreso.cliente_telefono_alt : 'N/A',
+          equipo_modelo: formIngreso.equipo_modelo, imei_serie: formIngreso.imei_serie, prioridad: formIngreso.prioridad,
+          falla_declarada: formIngreso.falla_declarada, presupuesto_usd: pres.monto_usd, moneda_original: pres.moneda_original,
+          monto_original: pres.monto_original, cotizacion_historica: pres.cotizacion_historica, estado_fisico: formIngreso.estado_fisico,
+          estado: 'Recibido', fecha_ingreso: new Date().toISOString()
+        };
         setOrdenes([nueva, ...safeArray(ordenes)]);
         registrarLog('Taller', 'Ingreso Equipo', `${formIngreso.equipo_modelo} (${nom})`);
         setFormIngreso({ cliente_nombre: '', cliente_telefono: '', cliente_telefono_alt: '', cliente_email: '', origen_cliente: 'Nuevo', equipo_modelo: '', imei_serie: '', prioridad: 'Moderada', falla_declarada: '', presupuesto_estimado: '', moneda_presupuesto: 'ARS', estado_fisico: '', tuvo_reparacion_previa: 'no', detalle_reparacion_previa: '', taller_previo: '', fecha_previa: '' });
@@ -377,7 +459,9 @@
           }
         });
 
-        if (Object.keys(descStock).length > 0) setStockRepuestos(safeArray(stockRepuestos).map(s => descStock[s.id] ? { ...s, cantidad: Math.max(0, s.cantidad - descStock[s.id]) } : s));
+        if (Object.keys(descStock).length > 0) {
+          setStockRepuestos(safeArray(stockRepuestos).map(s => descStock[s.id] ? { ...s, cantidad: Math.max(0, s.cantidad - descStock[s.id]) } : s));
+        }
 
         const mo = congelarMonto(manoObraInput, monedaManoObra);
         const esPagado = estadoPagoInicialCarga === 'Pagado';
@@ -488,7 +572,7 @@
                   </div>
                 </div>
                 <div>
-                  <input type="password" required value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="Contraseña (dev123)" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-purple-500 text-center font-mono text-sm tracking-widest shadow-inner" />
+                  <input type="password" required value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="Contraseña" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-purple-500 text-center font-mono text-sm tracking-widest shadow-inner" />
                 </div>
                 {loginError && <p className="text-[10px] text-rose-400 font-bold text-center bg-rose-950/40 py-2 rounded-lg">{loginError}</p>}
                 <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg text-[10px] tracking-widest uppercase mt-1">Ingresar</button>
@@ -500,7 +584,10 @@
 
       return (
         <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans text-xs">
+          
+          {/* ========================================================================= */}
           {/* BARRA LATERAL (W-64 COMPACTA) */}
+          {/* ========================================================================= */}
           <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between p-4 overflow-y-auto hide-scrollbar shrink-0">
             <div>
               <div className="flex items-center gap-3 px-1 py-2 mb-4 border-b border-slate-800">
@@ -551,7 +638,9 @@
             </div>
           </aside>
 
-          {/* CONTENIDO PRINCIPAL Y BARRA SUPERIOR */}
+          {/* ========================================================================= */}
+          {/* CONTENIDO PRINCIPAL */}
+          {/* ========================================================================= */}
           <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
             <header className="bg-slate-900 border-b border-slate-800 px-6 py-3 flex justify-between items-center sticky top-0 z-10">
               <div className="flex items-center gap-3">
@@ -633,7 +722,7 @@
                                 {safeArray(listaGremios).map((g, idx) => <option key={idx} value={g}>{g}</option>)}
                                 <option value="NUEVO">+ Nuevo Gremio...</option>
                               </select>
-                              {gremioSeleccionado === 'NUEVO' && <input type="text" required placeholder="Nombre..." value={nuevoGremioNombre} onChange={e => setNuevoGremioNombre(e.target.value)} className="w-full bg-slate-950 border border-amber-500 rounded-lg px-3 py-2 text-white" />}
+                              {gremioSeleccionado === 'NUEVO' && <input type="text" required placeholder="Nombre..." value={nuevoGremioNombre} onChange={e => setNuevoGremioNombre(e.target.value)} className="w-full bg-slate-950 border border-amber-500 rounded-lg px-3 py-2 text-white mt-2" />}
                             </div>
                           )}
                           <div className="grid grid-cols-2 gap-2">
@@ -704,7 +793,6 @@
                       <button onClick={() => setModalCargarReparacion(true)} className="bg-purple-600 text-white font-bold px-3 py-1.5 rounded-lg text-xs"><i className="fa-solid fa-plus mr-1"></i> Cargar</button>
                     </div>
                     <input type="text" placeholder="Buscar equipo..." value={busquedaReparaciones} onChange={(e) => setBusquedaReparaciones(e.target.value)} className="w-64 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white" />
-                    
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-x-auto">
                       <table className="w-full text-left text-xs text-slate-300">
                         <thead className="bg-slate-950 text-slate-400 font-bold border-b border-slate-800">
@@ -859,7 +947,7 @@
                         setDeudasFavor([nueva, ...safeArray(deudasFavor)]);
                         setFormDeudaFavor({ deudor: '', motivo: '', telefono: '', monto: '', moneda: 'ARS' });
                       }} className="flex gap-2 text-xs">
-                        <input type="text" required placeholder="Nombre..." value={formDeudaFavor.deudor} onChange={e => setFormDeudaFavor({...formDeudaFavor, deudor: e.target.value})} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" />
+                        <input type="text" required placeholder="Nombre deudor..." value={formDeudaFavor.deudor} onChange={e => setFormDeudaFavor({...formDeudaFavor, deudor: e.target.value})} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" />
                         <input type="number" step="any" required placeholder="Monto" value={formDeudaFavor.monto} onChange={e => setFormDeudaFavor({...formDeudaFavor, monto: e.target.value})} className="w-24 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white" />
                         <select value={formDeudaFavor.moneda} onChange={e => setFormDeudaFavor({...formDeudaFavor, moneda: e.target.value})} className="bg-slate-950 border border-slate-700 rounded-lg px-1 text-white"><option value="USD">USD</option><option value="ARS">ARS</option></select>
                         <button type="submit" className="bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg">Agregar</button>
@@ -871,7 +959,7 @@
                         <div key={d.id} className="bg-slate-950 border border-slate-700 rounded-lg p-3 flex justify-between items-center">
                           <div>
                             <p className={`font-bold text-sm ${d.estado === 'Pendiente' ? 'text-white' : 'text-slate-500 line-through'}`}>{d.deudor}</p>
-                            <p className="text-[9px] text-slate-400">{fmtHistorico(d)}</p>
+                            <p className="text-[9px] text-slate-400 mt-0.5">{fmtHistorico(d)}</p>
                           </div>
                           <div className="flex flex-col items-end gap-1.5">
                             <span className={`font-mono font-bold ${d.estado === 'Pendiente' ? 'text-emerald-400' : 'text-slate-500'}`}>{fmtMoney(d.monto_usd)}</span>
@@ -945,16 +1033,42 @@
                 const gre = safeArray(reparaciones).filter(r => r.tipo_cliente === 'gremio').length;
                 const minPct = totalRep ? Math.round((min/totalRep)*100) : 0;
                 const grePct = totalRep ? Math.round((gre/totalRep)*100) : 0;
+                
+                const pagadas = safeArray(reparaciones).filter(r => r.estado_pago === 'Pagado');
+                const facTotal = pagadas.reduce((a, r) => a + (r.total_usd || 0), 0);
+                const moTotal = pagadas.reduce((a, r) => a + (r.mano_obra_usd || 0), 0);
+                const repCostoTotal = pagadas.reduce((a, r) => a + (r.costo_repuestos_usd || 0), 0);
+                const gastosOpTotal = safeArray(gastosNegocio).reduce((a, g) => a + (g.monto_usd || 0), 0);
+                const rentabilidadPct = facTotal > 0 ? Math.round((moTotal / facTotal) * 100) : 0;
+
                 return (
                   <div className="space-y-5 max-w-4xl mx-auto fade-in">
                     <header><h2 className="text-xl font-bold text-white">Analíticas</h2></header>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
                         <h3 className="font-bold text-white mb-3">Origen Trabajos</h3>
                         <div className="space-y-2">
                           <div><div className="flex justify-between text-[10px] font-bold"><span className="text-blue-400">Minorista</span><span>{minPct}%</span></div><div className="w-full bg-slate-950 h-2 rounded"><div className="bg-blue-500 h-full" style={{width:`${minPct}%`}}></div></div></div>
                           <div><div className="flex justify-between text-[10px] font-bold"><span className="text-amber-400">Gremio</span><span>{grePct}%</span></div><div className="w-full bg-slate-950 h-2 rounded"><div className="bg-amber-500 h-full" style={{width:`${grePct}%`}}></div></div></div>
                         </div>
+                      </div>
+
+                      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm text-center">
+                        <h3 className="text-sm font-bold text-white text-left">Margen Neto</h3>
+                        <div className="relative w-24 h-24 mx-auto rounded-full flex items-center justify-center bg-slate-950 border-4 border-slate-800 mt-2">
+                          <div><span className="block text-2xl font-black text-emerald-400">{rentabilidadPct}%</span></div>
+                          <svg className="absolute top-[-4px] left-[-4px] w-24 h-24 transform -rotate-90 pointer-events-none" viewBox="0 0 100 100">
+                             <circle cx="50" cy="50" r="48" fill="transparent" stroke="#10b981" strokeWidth="4" strokeDasharray="301" strokeDashoffset={301 - (301 * rentabilidadPct) / 100} />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm space-y-2 text-xs">
+                        <h3 className="font-bold text-white mb-2">Resumen Total</h3>
+                        <div className="flex justify-between"><span className="text-slate-400">Bruto:</span><strong className="text-blue-400">{fmtMoney(facTotal)}</strong></div>
+                        <div className="flex justify-between"><span className="text-slate-400">Costo Rep:</span><strong className="text-rose-400">-{fmtMoney(repCostoTotal)}</strong></div>
+                        <div className="flex justify-between"><span className="text-slate-400">Neto:</span><strong className="text-emerald-400">{fmtMoney(moTotal)}</strong></div>
+                        <div className="flex justify-between border-t border-slate-800 pt-1 mt-1"><span className="text-slate-400">Gastos Op:</span><strong className="text-rose-400">-{fmtMoney(gastosOpTotal)}</strong></div>
                       </div>
                     </div>
                   </div>
@@ -996,13 +1110,13 @@
                 </div>
               )}
 
-              {/* === VISTA 14: CONFIG === */}
+              {/* === VISTA 14: CONFIGURACIÓN === */}
               {vista === 'config' && (
                 <div className="space-y-5 max-w-4xl mx-auto fade-in">
                   <header><h2 className="text-xl font-bold text-white">Configuración y Backup</h2></header>
                   <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 max-w-md space-y-4">
                     <h3 className="font-bold text-white">Restaurar Backup JSON</h3>
-                    <p className="text-[10px] text-slate-400">Subí el archivo acá para reemplazar la base:</p>
+                    <p className="text-[10px] text-slate-400">Si tenés un archivo de respaldo, podés subirlo acá para restaurar los datos en la nube:</p>
                     <input type="file" accept=".json" onChange={importarBackupJson} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-300" />
                   </div>
                 </div>
